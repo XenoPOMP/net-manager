@@ -35,7 +35,7 @@ Two independent numbers, always shown together in the status bar (bottom right) 
 
 | | Version | Build number |
 |---|---|---|
-| Form | SemVer `MAJOR.MINOR.PATCH[-prerelease]` (now `1.0.0-rc.1`) | one integer |
+| Form | SemVer `MAJOR.MINOR.PATCH[-prerelease]` (the current one is in `Directory.Build.props`) | one integer |
 | Source of truth | `<Version>` in `Directory.Build.props` — the only place; all three assemblies use it | `build-number.txt` (tracked in git; holds the **last used** number) |
 | Changes when | you bump it by hand (checklist below) | automatically **+1 on every `./publish-win.sh` run** (an `all` run gives all three RIDs the same number) |
 | Where it shows | status bar `v…`; the exe's Windows *Details* tab: File version `1.0.0.0`, Product version `1.0.0-rc.1+<git commit sha>` | status bar `build N`; assembly metadata `BuildNumber` |

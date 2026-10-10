@@ -4,7 +4,7 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>1.0.0-rc.1</Version>
+    <Version>1.0.0-rc.2</Version>
     <!-- Rider's reduced build never produces obj/**/ref/*.dll, so dependents failed with CS0006.
          Referencing the normal project output avoids that file entirely. -->
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
