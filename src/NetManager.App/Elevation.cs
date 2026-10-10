@@ -34,8 +34,11 @@ internal static class Elevation
 
         var pass = args.Where(a => a != AttemptedFlag).ToList();
         // `dotnet NetManager.dll`: the process is dotnet.exe and the program has to be passed to it as the first argument.
+        // (Not Assembly.Location: it is empty in single-file apps and trips analyzer IL3000. That case never gets here,
+        // because a single-file app's ProcessPath is the exe itself.)
         if (Path.GetFileNameWithoutExtension(exe).Equals("dotnet", StringComparison.OrdinalIgnoreCase)
-            && Assembly.GetEntryAssembly()?.Location is { Length: > 0 } dll)
+            && Assembly.GetEntryAssembly()?.GetName().Name is { } name
+            && Path.Combine(AppContext.BaseDirectory, name + ".dll") is var dll && File.Exists(dll))
             pass.Insert(0, dll);
         if (markAttempted) pass.Add(AttemptedFlag);
 
