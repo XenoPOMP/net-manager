@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using NetManager.Core.Localization;
@@ -6,7 +7,7 @@ using NetManager.Core.Models;
 namespace NetManager.Core.Services;
 
 /// <summary>A saved connection: the IPv4 settings (and static routes) that can be re-applied in one click.</summary>
-public sealed class ConnectionProfile
+public sealed class ConnectionProfile : INotifyPropertyChanged
 {
     public string Name { get; set; } = "";
     /// <summary>Adapter this profile targets, matched by name (e.g. "Ethernet") or, failing that, MAC address.</summary>
@@ -14,6 +15,26 @@ public sealed class ConnectionProfile
     public string? AdapterMac { get; set; }
     public Ipv4Config Ipv4 { get; set; } = new();
     public List<ProfileRoute> Routes { get; set; } = [];
+
+    private bool _isActive;
+
+    /// <summary>
+    /// True while the adapter's current settings match this profile (see <see cref="ProfileMatcher"/>). Runtime state, never saved:
+    /// as soon as anything is changed by hand it turns false again.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsActive
+    {
+        get => _isActive;
+        set
+        {
+            if (_isActive == value) return;
+            _isActive = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsActive)));
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>
     /// Default routes (0.0.0.0/0) are the default gateways, which live in <see cref="Ipv4"/>.Gateways. Older versions also copied them into

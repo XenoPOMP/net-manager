@@ -11,6 +11,13 @@ public partial class AppShell : ObservableObject
     [ObservableProperty] private bool _isError;
     [ObservableProperty] private bool _isBusy;
 
+    /// <summary>
+    /// Raised whenever fresh adapter / route data was read or something was changed. Pages that derive state from the system
+    /// (e.g. which profile is active) listen to this instead of knowing about each other.
+    /// </summary>
+    public event Action? NetworkChanged;
+    public void RaiseNetworkChanged() => NetworkChanged?.Invoke();
+
     public void Info(string message) { Status = message; IsError = false; }
     public void Error(string message) { Status = message; IsError = true; }
 

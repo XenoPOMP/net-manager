@@ -281,5 +281,8 @@ public static class EnglishStrings
         ["banner.runAsAdmin"] = "Sign in as administrator…",
         ["banner.admin.uacOff"] = "User Account Control is turned off on this PC, so a standard account cannot elevate. Sign in with an administrator account, or turn UAC on.",
         ["banner.admin.uacDeny"] = "A security policy makes Windows deny elevation requests from standard accounts automatically (UAC: “Behavior of the elevation prompt for standard users”), so no password prompt appears. Sign in as an administrator, or use “Sign in as administrator…”.",
+        ["profiles.badge"] = "Active",
+        ["profiles.state.active"] = "Active — the adapter's current settings match this profile.",
+        ["profiles.state.inactive"] = "Not active — the adapter's current settings differ from this profile.",
     };
 }

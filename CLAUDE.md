@@ -27,9 +27,10 @@ Zed users: the same commands are ready-made tasks in `.zed/tasks.json` (incl. **
 Always finish a change with `dotnet build NetManager.slnx` (expect 0 errors, 0 warnings) and `dotnet test`.
 Because output is Russian, grep for `error|Ошибок|Предупреждений` and `Пройден|Неудач`, or just read the tail.
 
-**Stale-exe check:** the status bar (bottom right) shows `v0.1.0 · build <local time>`. When the user says a fix "persisted", first compare that stamp with the publish
-time: the user runs the exe on a Windows VM and has to copy each new `publish/<rid>/NetManager.exe` there by hand (suspected once already: a Profiles error that the
-new build could not produce was still showing, together with old summary text that the new build strips on load).
+**Stale-exe check:** the status bar (bottom right) shows `v0.1.0 · build N`. `publish-win.sh` bumps `build-number.txt` once per run (all RIDs of an `all` run share the number) and passes
+`-p:BuildNumber=N`, which the csproj embeds as assembly metadata (`BuildInfo.Text`); IDE/`dotnet run` builds show `dev build`. When the user says a fix "persisted", first compare that number
+with the one just published: the user runs the exe on a Windows VM and has to copy each new `publish/<rid>/NetManager.exe` there by hand (this already happened once: a Profiles error the new
+build could not produce was still showing). **Always tell the user the build number after publishing** (`cat build-number.txt`).
 
 ## Layout
 
@@ -77,6 +78,12 @@ and pick the backend at runtime: `OperatingSystem.IsWindows() ? WindowsNetworkSe
   disabled adapters (WMI `ConfigManagerErrorCode == 22`) are *not* reported by the IP stack, so they come from WMI only. Identity is the adapter
   **GUID** (`AdapterInfo.Id`), not the interface index (disabled adapters may have none). Enable/disable = WMI `Enable()/Disable()` looked up by GUID
   (the id is `Guid.TryParse`-validated before entering a WQL string).
+- **Active profile marker**: `ProfileMatcher` (Core, tested) says a profile is active iff the adapter's *current* state equals it (method, addresses, gateways + explicit metrics, DNS mode/servers *in order*,
+  interface metric, and exactly the profile's static routes; DHCP profiles ignore leased addresses; an "automatic" gateway metric accepts whatever Windows stored). It is runtime state
+  (`ConnectionProfile.IsActive`, INPC, `[JsonIgnore]`), recomputed by `ProfilesViewModel.RefreshActiveAsync` on `AppShell.NetworkChanged` (raised after every adapter/route read) and when the Profiles page
+  opens. Bind UI to `Selected.IsActive` (the item), not to a VM property that is re-raised later — that made the details panel lag behind the list badge.
+- **Silent reloads**: `ConnectionsViewModel.ReloadAsync(keepEditor)` / `RoutesViewModel.ReloadAsync()` re-read without touching the status bar (so a success/error message stays visible).
+  After a profile activation (even a failed one) `ProfilesViewModel.AfterChange` reloads both pages immediately and again after 2 s and 5 s (DHCP leases / re-initialising adapters), the later ones with `keepEditor: true`.
 - **Profiles**: IPv4 settings + the adapter's static routes; adapter matched by name then MAC. **Default routes (0.0.0.0/0) are never stored** — a default gateway is part of
   `Ipv4.Gateways` (Windows lists a manual gateway as a static 0.0.0.0/0 route, so saving used to copy it; activating then failed with error 5010). `ProfileStore.Load` strips them from old files.
   Activation treats `NetworkErrorKind.AlreadyExists` (Win32 5010) as success. **Never decide on error *text*** — messages are localized; give `NetworkOperationException` a `Kind` instead

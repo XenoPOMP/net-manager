@@ -15,6 +15,10 @@ public partial class ProfilesViewModel : ObservableObject
 
     public ObservableCollection<ConnectionProfile> Profiles { get; } = [];
 
+    /// <summary>Set by the shell: reloads the Connections / Routing pages after profiles changed the system.</summary>
+    public Func<Task>? AfterChange { get; set; }
+
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedAdapterLine))]
     [NotifyCanExecuteChangedFor(nameof(ApplyCommand), nameof(DeleteCommand))]
@@ -30,6 +34,32 @@ public partial class ProfilesViewModel : ObservableObject
         _shell = shell;
         foreach (var p in store.Load()) Profiles.Add(p);
         Selected = Profiles.FirstOrDefault();
+        // Which profile is "active" is derived from the live system state, so recompute whenever that state was re-read or changed.
+        shell.NetworkChanged += () => _ = RefreshActiveAsync();
+    }
+
+    private bool _activeBusy, _activeDirty;
+
+    /// <summary>A profile is active exactly while the adapter's current settings match it; change anything by hand and the marker goes away.</summary>
+    public async Task RefreshActiveAsync()
+    {
+        if (_activeBusy) { _activeDirty = true; return; }   // collapse bursts of NetworkChanged into one more pass
+        _activeBusy = true;
+        try
+        {
+            do
+            {
+                _activeDirty = false;
+                try
+                {
+                    var adapters = await _network.GetAdaptersAsync();
+                    var routes = await _network.GetRoutesAsync();
+                    foreach (var p in Profiles) p.IsActive = ProfileMatcher.IsActive(p, adapters, routes);
+                }
+                catch (Exception) { foreach (var p in Profiles) p.IsActive = false; }
+            } while (_activeDirty);
+        }
+        finally { _activeBusy = false; }
     }
 
     /// <summary>Saves (or overwrites) a profile from the editor state plus the adapter's current static routes.</summary>
@@ -93,6 +123,8 @@ public partial class ProfilesViewModel : ObservableObject
             }
             if (failures.Count > 0) throw new NetworkOperationException(Loc.T("profiles.routesFailed", string.Join("; ", failures)));
         }, Loc.T("profiles.active", p.Name));
+        // Even a partly failed activation changed things: show the real state on the other pages (without replacing the message above).
+        if (AfterChange is { } refresh) await refresh();
     }
 
     [RelayCommand(CanExecute = nameof(HasSelection))]

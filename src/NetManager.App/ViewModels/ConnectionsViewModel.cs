@@ -96,29 +96,35 @@ public partial class ConnectionsViewModel : ObservableObject
         IReadOnlyList<AdapterInfo> list = [];
         var ok = await _shell.RunAsync(Loc.T("conn.reading"), async () => list = await _network.GetAdaptersAsync(), Loc.T("conn.refreshed"));
         if (!ok) return;
-
-        string? keep = Selected?.Id;
-        Adapters.Clear();
-        foreach (var a in list) Adapters.Add(a);
-        Selected = Adapters.FirstOrDefault(a => a.Id == keep) ?? Adapters.FirstOrDefault();
+        ShowAdapters(list, keepEditor: false);
+        _shell.RaiseNetworkChanged();
     }
 
-    private async Task RefreshQuietlyAsync()
+    /// <summary>
+    /// Re-reads the adapters without touching the status bar (so a success/error message stays visible).
+    /// <paramref name="keepEditor"/>: leave what the user typed alone — the list and the read-only details still update.
+    /// </summary>
+    public async Task ReloadAsync(bool keepEditor)
     {
         try
         {
-            var list = await _network.GetAdaptersAsync();
-            string? keep = Selected?.Id;
-            _keepEditor = true;
-            try
-            {
-                Adapters.Clear();
-                foreach (var a in list) Adapters.Add(a);
-                Selected = Adapters.FirstOrDefault(a => a.Id == keep) ?? Adapters.FirstOrDefault();
-            }
-            finally { _keepEditor = false; }
+            ShowAdapters(await _network.GetAdaptersAsync(), keepEditor);
+            _shell.RaiseNetworkChanged();
         }
-        catch (Exception) { /* the original error is what matters */ }
+        catch (Exception) { /* a failed background refresh must not hide the message that is already shown */ }
+    }
+
+    private void ShowAdapters(IReadOnlyList<AdapterInfo> list, bool keepEditor)
+    {
+        string? keep = Selected?.Id;
+        _keepEditor = keepEditor;
+        try
+        {
+            Adapters.Clear();
+            foreach (var a in list) Adapters.Add(a);
+            Selected = Adapters.FirstOrDefault(a => a.Id == keep) ?? Adapters.FirstOrDefault();
+        }
+        finally { _keepEditor = false; }
     }
 
     /// <summary>Builds a config from the editor fields, or reports why it can't.</summary>
@@ -177,7 +183,7 @@ public partial class ConnectionsViewModel : ObservableObject
         }
         // Applying is several steps (address, gateways, metric, DNS); an early one may have taken effect before a later one failed.
         // Show the real state in the list, but keep what the user typed and the error message.
-        await RefreshQuietlyAsync();
+        await ReloadAsync(keepEditor: true);
     }
 
     [RelayCommand(CanExecute = nameof(HasAdapter))]

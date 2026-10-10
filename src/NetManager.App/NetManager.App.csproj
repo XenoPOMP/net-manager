@@ -19,11 +19,12 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
   </ItemGroup>
 
-  <!-- Build time, shown in the status bar: tells at a glance whether the exe being run is the one that was just published. -->
-  <ItemGroup>
+  <!-- Build number, shown in the status bar so a screenshot says exactly which exe is running. publish-win.sh passes
+       -p:BuildNumber=N (it increments build-number.txt once per run); ordinary IDE / dotnet builds have none and show "dev build". -->
+  <ItemGroup Condition="'$(BuildNumber)' != ''">
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
-      <_Parameter1>BuildTime</_Parameter1>
-      <_Parameter2>$([System.DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"))</_Parameter2>
+      <_Parameter1>BuildNumber</_Parameter1>
+      <_Parameter2>$(BuildNumber)</_Parameter2>
     </AssemblyAttribute>
   </ItemGroup>
 

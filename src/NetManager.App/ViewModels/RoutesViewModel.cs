@@ -88,7 +88,25 @@ public partial class RoutesViewModel : ObservableObject
             adapters = await _network.GetAdaptersAsync();
         }, Loc.T("routes.refreshed"));
         if (!ok) return;
+        Show(list, adapters);
+        _shell.RaiseNetworkChanged();
+    }
 
+    /// <summary>Re-reads the routing table without touching the status bar.</summary>
+    public async Task ReloadAsync()
+    {
+        try
+        {
+            var list = await _network.GetRoutesAsync();
+            var adapters = await _network.GetAdaptersAsync();
+            Show(list, adapters);
+            _shell.RaiseNetworkChanged();
+        }
+        catch (Exception) { /* keep whatever message is on screen */ }
+    }
+
+    private void Show(IReadOnlyList<RouteEntry> list, IReadOnlyList<AdapterInfo> adapters)
+    {
         _all = list;
         var chosen = NewInterface?.Index;
         while (Interfaces.Count > 1) Interfaces.RemoveAt(1);

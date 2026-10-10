@@ -47,6 +47,7 @@ public partial class MainViewModel : ObservableObject
     public string RunAsAdminUserButton => Loc.T("banner.runAsAdmin");
     public bool ShowAdminWarning => !Network.CanModify;
     public MaintenanceViewModel Maintenance { get; }
+    public ProfilesViewModel Profiles { get; }
     public bool ShowMissingBanner => Maintenance.HasMissing;
     public string MissingBannerText => Loc.T("banner.missing", Maintenance.MissingNames);
     public string MissingBannerButton => Loc.T("banner.missingOpen");
@@ -58,7 +59,7 @@ public partial class MainViewModel : ObservableObject
         // Posted, not run inline: the language box lives on the page that is about to be rebuilt.
         Settings.LanguageChanged += () => Dispatcher.UIThread.Post(RebuildForLanguage);
 
-        var profiles = new ProfilesViewModel(network, store, Shell);
+        var profiles = Profiles = new ProfilesViewModel(network, store, Shell);
         var connections = new ConnectionsViewModel(network, profiles, Shell);
         var routes = new RoutesViewModel(network, Shell);
         // Anything that adds or removes adapters must refresh the other pages too.
@@ -70,6 +71,14 @@ public partial class MainViewModel : ObservableObject
                 OnPropertyChanged(nameof(ShowMissingBanner));
                 OnPropertyChanged(nameof(MissingBannerText));
             }
+        };
+        // Activating a profile changes adapters and routes: reload those pages now, and again shortly after — an address that comes
+        // from DHCP, or an adapter that is still re-initialising, is often not there yet in the first read.
+        profiles.AfterChange = async () =>
+        {
+            await connections.ReloadAsync(keepEditor: false);
+            await routes.ReloadAsync();
+            _ = FollowUpReloadsAsync(connections, routes);
         };
         _pages = BuildPages(connections, routes, profiles, Maintenance);
         _footerPages = [new("nav.settings", "⚙", Settings)];
@@ -89,11 +98,22 @@ public partial class MainViewModel : ObservableObject
     ];
 
     // The nav ListBoxes report null while their items are replaced, and selecting in one list clears the other: nulls never change the page.
+    private static async Task FollowUpReloadsAsync(ConnectionsViewModel connections, RoutesViewModel routes)
+    {
+        foreach (var delay in new[] { 2000, 3000 })
+        {
+            await Task.Delay(delay);
+            await connections.ReloadAsync(keepEditor: true);   // keep anything the user started typing meanwhile
+            await routes.ReloadAsync();
+        }
+    }
+
     partial void OnSelectedPageChanged(NavItem? value)
     {
         if (value is null) return;
         CurrentPage = value.Page;
         SelectedFooter = null;
+        if (ReferenceEquals(value.Page, Profiles)) _ = Profiles.RefreshActiveAsync();   // never show a stale "active" marker
     }
 
     partial void OnSelectedFooterChanged(NavItem? value)

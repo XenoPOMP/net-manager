@@ -8,12 +8,18 @@ cd "$(dirname "$0")"   # always run from the repo root, whatever the caller's cw
 RIDS=(win-x64 win-x86 win-arm64)
 APP=src/NetManager.App/NetManager.App.csproj
 
+# Every publish run is a new build: bump the counter that the app shows in its status bar ("build 7").
+# (All runtimes published by one `all` run share the number.)
+BUILD_NUMBER=$(( $(cat build-number.txt 2>/dev/null || echo 0) + 1 ))
+echo "$BUILD_NUMBER" > build-number.txt
+echo "== build $BUILD_NUMBER =="
+
 # publish_one <rid> [extra dotnet args…]
 publish_one() {
   local rid="$1"; shift
   dotnet publish "$APP" -c Release -r "$rid" --self-contained \
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
-    -p:EnableCompressionInSingleFile=true -p:DebugType=none -p:DebugSymbols=false \
+    -p:EnableCompressionInSingleFile=true -p:DebugType=none -p:DebugSymbols=false -p:BuildNumber="$BUILD_NUMBER" \
     -o "publish/$rid" "$@"
   rm -f "publish/$rid"/*.pdb
   echo "→ publish/$rid/NetManager.exe"
