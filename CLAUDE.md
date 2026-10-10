@@ -31,19 +31,19 @@ Because output is Russian, grep for `error|Ошибок|Предупрежден
 
 ## Versioning
 
-Two independent numbers, always shown together in the status bar (bottom right) as **`v0.1.0 · build 5`**:
+Two independent numbers, always shown together in the status bar (bottom right) as **`v1.0.0-rc.1 · build 1`**:
 
 | | Version | Build number |
 |---|---|---|
-| Form | SemVer `MAJOR.MINOR.PATCH` (now `0.1.0`) | one integer |
+| Form | SemVer `MAJOR.MINOR.PATCH[-prerelease]` (now `1.0.0-rc.1`) | one integer |
 | Source of truth | `<Version>` in `Directory.Build.props` — the only place; all three assemblies use it | `build-number.txt` (tracked in git; holds the **last used** number) |
 | Changes when | you bump it by hand (checklist below) | automatically **+1 on every `./publish-win.sh` run** (an `all` run gives all three RIDs the same number) |
-| Where it shows | status bar `v…`; the exe's Windows *Details* tab: File version `0.1.0.0`, Product version `0.1.0+<git commit sha>` | status bar `build N`; assembly metadata `BuildNumber` |
+| Where it shows | status bar `v…`; the exe's Windows *Details* tab: File version `1.0.0.0`, Product version `1.0.0-rc.1+<git commit sha>` | status bar `build N`; assembly metadata `BuildNumber` |
 
 How the build number gets into the exe: the script reads `build-number.txt`, adds 1, writes it back, and passes `-p:BuildNumber=N`; `NetManager.App.csproj` emits
 `AssemblyMetadata("BuildNumber", N)` only when that property is set; `BuildInfo.Text` reads it. Builds from the IDE or `dotnet run` have no number and show **`dev build`** — so a
-`dev build` in a screenshot means the exe did not come from `publish-win.sh`. Facts verified on a published exe: the exe's own version resource has FileVersion `0.1.0.0` (the 4th part is
-**not** the build number) and ProductVersion `0.1.0+<sha>`; the sha is HEAD at build time (added by the SDK), so it does not reflect uncommitted changes — don't use it to prove which sources an exe has.
+`dev build` in a screenshot means the exe did not come from `publish-win.sh`. Facts verified on a published exe: the exe's own version resource has FileVersion `1.0.0.0` (the 4th part is
+**not** the build number) and ProductVersion `1.0.0-rc.1+<sha>` (re-verified on all three RIDs at 1.0.0-rc.1); the sha is HEAD at build time (added by the SDK), so it does not reflect uncommitted changes — don't use it to prove which sources an exe has.
 
 **Rules**
 - The script increments *before* publishing, so the file holds the last number used: write **`0`** to make the next publish **build 1** (writing `1` would give build 2).
@@ -63,8 +63,8 @@ change for a pre-release; keep `<Version>` the single place (don't also set `Ver
 
 **Bumping the version — always with the script** (`tools/bump-version.sh <version>`; a release `0.2.0`, a pre-release `0.2.0-beta.1`, `1.0.0-rc.2`…). It rejects anything that is not valid SemVer 2.0
 (`1.0`, `v1.0.0`, `01.0.0`, `1.0.0-beta..1`, `1.0.0-01`, `+metadata`…), refuses to "bump" to the current version, edits `<Version>` in `Directory.Build.props`, sets `build-number.txt` to `0`, and
-warns about a pre-release label without a numeric last identifier. Policy: SemVer, still `0.x` while roadmap features are missing — new feature → MINOR (`0.1.0 → 0.2.0`), fixes only → PATCH (`0.1.0 → 0.1.1`),
-`1.0.0` when it is considered stable.
+warns about a pre-release label without a numeric last identifier. Policy (the app reached `1.0.0-rc.1` on 2026-10-10): new feature → MINOR (`1.0.0 → 1.1.0`), fixes only → PATCH (`1.0.0 → 1.0.1`), a change that breaks saved data or behaviour users rely on
+(profiles/settings file format, removed feature) → MAJOR. History: `0.1.0` until `1.0.0-rc.1`.
 1. `tools/bump-version.sh 0.2.0-beta.1` — prints `version 0.1.0 → 0.2.0-beta.1` and `build number 5 → 0`; check that is what you meant (it does not compare precedence, so a typo like `0.0.2` is accepted).
 2. `dotnet build NetManager.slnx` and `dotnet test` (0 errors / 0 warnings, all tests pass).
 3. `./publish-win.sh all` → the status bar must read `v0.2.0-beta.1 · build 1`.
