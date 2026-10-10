@@ -35,4 +35,11 @@ public interface INetworkService
     Task DeleteRouteAsync(RouteEntry route, CancellationToken ct = default);
 }
 
-public sealed class NetworkOperationException(string message, Exception? inner = null) : Exception(message, inner);
+/// <summary>Machine-readable failure reasons, so callers never have to match on (localized) message text.</summary>
+public enum NetworkErrorKind { General, AlreadyExists }
+
+public sealed class NetworkOperationException(string message, Exception? inner = null, NetworkErrorKind kind = NetworkErrorKind.General)
+    : Exception(message, inner)
+{
+    public NetworkErrorKind Kind { get; } = kind;
+}

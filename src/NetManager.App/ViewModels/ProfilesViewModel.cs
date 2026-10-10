@@ -39,7 +39,8 @@ public partial class ProfilesViewModel : ObservableObject
         try
         {
             routes = (await _network.GetRoutesAsync())
-                .Where(r => r.Kind == RouteKind.Static && r.InterfaceIndex == adapter.InterfaceIndex)
+                // not the default route: a default gateway is part of the IPv4 settings (Gateways), not a separate static route
+                .Where(r => r.Kind == RouteKind.Static && r.InterfaceIndex == adapter.InterfaceIndex && !r.IsDefault)
                 .Select(r => new ProfileRoute { Destination = r.Destination, PrefixLength = r.PrefixLength, NextHop = r.NextHop, Metric = r.Metric, Persistent = r.IsPersistent })
                 .ToList();
         }
@@ -87,7 +88,7 @@ public partial class ProfilesViewModel : ObservableObject
                         InterfaceIndex = adapter.InterfaceIndex, Metric = r.Metric, Persistent = r.Persistent,
                     });
                 }
-                catch (NetworkOperationException ex) when (ex.Message.Contains("exists", StringComparison.OrdinalIgnoreCase)) { /* already there */ }
+                catch (NetworkOperationException ex) when (ex.Kind == NetworkErrorKind.AlreadyExists) { /* already there: that is the goal */ }
                 catch (NetworkOperationException ex) { failures.Add($"{r.Destination}/{r.PrefixLength}: {ex.Message}"); }
             }
             if (failures.Count > 0) throw new NetworkOperationException(Loc.T("profiles.routesFailed", string.Join("; ", failures)));

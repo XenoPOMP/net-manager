@@ -108,3 +108,56 @@ public class GatewayTests
         Assert.Single(a.Gateways);
     }
 }
+
+[Collection("Loc")] // one test switches the process-wide language
+public class ProfileRouteTests
+{
+    [Fact]
+    public void DefaultRoutesAreNotKeptInProfiles()
+    {
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        try
+        {
+            // a file as older versions wrote it: the default gateway also saved as a "static route"
+            File.WriteAllText(path, """
+            [{ "Name": "DHCP", "AdapterName": "Ethernet", "Ipv4": { "Method": "Automatic", "DnsAutomatic": true },
+               "Routes": [ { "Destination": "0.0.0.0", "PrefixLength": 0, "NextHop": "192.168.0.1", "Metric": 1, "Persistent": true },
+                           { "Destination": "10.8.0.0", "PrefixLength": 24, "NextHop": "192.168.0.250", "Metric": 5, "Persistent": false } ] }]
+            """);
+            var p = Assert.Single(new ProfileStore(path).Load());
+            var kept = Assert.Single(p.Routes);
+            Assert.Equal("10.8.0.0", kept.Destination);   // real static route survives
+            Assert.Contains("routes: 1", p.Summary);   // the summary counts only the real route
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void OnlyTheDefaultRouteCountsAsDefault()
+    {
+        Assert.True(new ProfileRoute { Destination = "0.0.0.0", PrefixLength = 0 }.IsDefaultRoute);
+        Assert.False(new ProfileRoute { Destination = "0.0.0.0", PrefixLength = 8 }.IsDefaultRoute);
+        Assert.False(new ProfileRoute { Destination = "10.0.0.0", PrefixLength = 0 }.IsDefaultRoute);
+    }
+
+    [Theory]
+    [InlineData("en")]
+    [InlineData("ru")]
+    public async Task DuplicateRouteIsReportedAsAlreadyExistsInAnyLanguage(string language)
+    {
+        // Regression: activation used to detect "already exists" by looking for the English word in the message.
+        try
+        {
+            NetManager.Core.Localization.Loc.SetLanguage(language);
+            var net = new MockNetworkService();
+            var existing = (await net.GetRoutesAsync()).First(r => r.Kind == RouteKind.Static);
+            var ex = await Assert.ThrowsAsync<NetworkOperationException>(() => net.AddRouteAsync(new RouteRequest
+            {
+                Destination = existing.Destination, PrefixLength = existing.PrefixLength, NextHop = existing.NextHop,
+                InterfaceIndex = existing.InterfaceIndex, Metric = existing.Metric,
+            }));
+            Assert.Equal(NetworkErrorKind.AlreadyExists, ex.Kind);
+        }
+        finally { NetManager.Core.Localization.Loc.SetLanguage("en"); }
+    }
+}

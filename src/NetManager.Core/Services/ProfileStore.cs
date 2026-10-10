@@ -15,6 +15,12 @@ public sealed class ConnectionProfile
     public Ipv4Config Ipv4 { get; set; } = new();
     public List<ProfileRoute> Routes { get; set; } = [];
 
+    /// <summary>
+    /// Default routes (0.0.0.0/0) are the default gateways, which live in <see cref="Ipv4"/>.Gateways. Older versions also copied them into
+    /// <see cref="Routes"/>; re-adding them on activation then collides with the gateway (or the DHCP one) that already exists.
+    /// </summary>
+    public void DropDefaultRoutes() => Routes.RemoveAll(r => r.IsDefaultRoute);
+
     [JsonIgnore]
     public string Summary
     {
@@ -37,6 +43,9 @@ public sealed class ProfileRoute
     public string? NextHop { get; set; }
     public int Metric { get; set; } = 1;
     public bool Persistent { get; set; }
+
+    [JsonIgnore]
+    public bool IsDefaultRoute => PrefixLength == 0 && Destination == "0.0.0.0";
 }
 
 public sealed class ProfileStore(string? path = null)
@@ -55,7 +64,9 @@ public sealed class ProfileStore(string? path = null)
         try
         {
             if (!File.Exists(FilePath)) return [];
-            return JsonSerializer.Deserialize<List<ConnectionProfile>>(File.ReadAllText(FilePath), Json) ?? [];
+            var profiles = JsonSerializer.Deserialize<List<ConnectionProfile>>(File.ReadAllText(FilePath), Json) ?? [];
+            foreach (var p in profiles) p.DropDefaultRoutes();   // migrates files written before default routes were excluded
+            return profiles;
         }
         catch (JsonException) { return []; }
     }

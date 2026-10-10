@@ -2,7 +2,11 @@
   {
     "label": "NetManager: run",
     "command": "dotnet",
-    "args": ["run", "--project", "src/NetManager.App"],
+    "args": [
+      "run",
+      "--project",
+      "src/NetManager.App"
+    ],
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": false,
@@ -11,7 +15,13 @@
   {
     "label": "NetManager: run (--no-elevate, for debugging on Windows)",
     "command": "dotnet",
-    "args": ["run", "--project", "src/NetManager.App", "--", "--no-elevate"],
+    "args": [
+      "run",
+      "--project",
+      "src/NetManager.App",
+      "--",
+      "--no-elevate"
+    ],
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": false,
@@ -20,7 +30,10 @@
   {
     "label": "NetManager: build",
     "command": "dotnet",
-    "args": ["build", "NetManager.slnx"],
+    "args": [
+      "build",
+      "NetManager.slnx"
+    ],
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": false,
@@ -29,7 +42,9 @@
   {
     "label": "NetManager: test",
     "command": "dotnet",
-    "args": ["test"],
+    "args": [
+      "test"
+    ],
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": false,
@@ -38,7 +53,9 @@
   {
     "label": "NetManager: publish Windows x64",
     "command": "./publish-win.sh",
-    "args": ["win-x64"],
+    "args": [
+      "win-x64"
+    ],
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": false,
@@ -47,7 +64,20 @@
   {
     "label": "NetManager: publish Windows ARM64",
     "command": "./publish-win.sh",
-    "args": ["win-arm64"],
+    "args": [
+      "win-arm64"
+    ],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Publish everywhere",
+    "command": "./publish-win.sh",
+    "args": [
+      "all"
+    ],
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": false,
     "allow_concurrent_runs": false,

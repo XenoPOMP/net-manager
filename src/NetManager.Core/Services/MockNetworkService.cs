@@ -194,7 +194,7 @@ public sealed class MockNetworkService : INetworkService
         {
             int ifIndex = route.InterfaceIndex ?? _adapters.First(a => a.Status == AdapterStatus.Connected).InterfaceIndex;
             if (_routes.Any(r => r.Destination == route.Destination && r.PrefixLength == route.PrefixLength && r.NextHop == route.NextHop && r.InterfaceIndex == ifIndex))
-                throw new NetworkOperationException(Loc.T("mock.exists"));
+                throw new NetworkOperationException(Loc.T("mock.exists"), kind: NetworkErrorKind.AlreadyExists);
             _routes.Add(Route(route.Destination, route.PrefixLength, route.NextHop, ifIndex, route.Metric, 0, RouteKind.Static, "Static", route.Persistent)
                 with { InterfaceName = NameOf(ifIndex) });
         }

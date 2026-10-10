@@ -78,7 +78,9 @@ internal static class IpForwardTable
     private static void Check(int rc, string messageKey)
     {
         if (rc == 0) return;
-        throw new NetworkOperationException(Loc.T(messageKey, new Win32Exception(rc).Message, rc));
+        // 5010 = ERROR_OBJECT_ALREADY_EXISTS: callers (profile activation) treat "the route is already there" as success.
+        throw new NetworkOperationException(Loc.T(messageKey, new Win32Exception(rc).Message, rc),
+            kind: rc == 5010 ? NetworkErrorKind.AlreadyExists : NetworkErrorKind.General);
     }
 
     private static string? ReadAddress(IntPtr sockaddrInet)

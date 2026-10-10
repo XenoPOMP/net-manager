@@ -16,10 +16,12 @@ C# / .NET 10 / Avalonia 12, MVVM with CommunityToolkit.Mvvm. UI in English and R
 dotnet build NetManager.slnx                       # whole solution
 dotnet test                                        # xunit, Core only (runs fine on macOS)
 dotnet run --project src/NetManager.App            # runs with demo data (MockNetworkService) on macOS
-./publish-win.sh [win-x64|win-x86|win-arm64]       # self-contained single-file NetManager.exe -> publish/<rid>/
+./publish-win.sh [win-x64|win-x86|win-arm64|all]  # self-contained single-file NetManager.exe -> publish/<rid>/ ("all" = every RID in parallel)
 ```
 
-Zed users: the same commands are ready-made tasks in `.zed/tasks.json` (`task: spawn` / `cmd-shift-p`). Zed (like the CLI) does a full MSBuild build, so the Rider
+`all` mode: each RID publishes in its own build tree (`--artifacts-path artifacts/<rid>`, gitignored) — parallel publishes of one project otherwise race on the shared `obj/`
+(restore assets, shared libraries) like overlapping IDE builds do. Don't "optimise" it back to a shared tree. Failures print that RID's log and the script exits 1.
+Zed users: the same commands are ready-made tasks in `.zed/tasks.json` (incl. **Publish everywhere** = `./publish-win.sh all`) (`task: spawn` / `cmd-shift-p`). Zed (like the CLI) does a full MSBuild build, so the Rider
 "reduced build" problems below don't apply there. Debugging C# in Zed isn't built in (needs a community `netcoredbg` setup); not configured here.
 
 Always finish a change with `dotnet build NetManager.slnx` (expect 0 errors, 0 warnings) and `dotnet test`.
@@ -71,7 +73,10 @@ and pick the backend at runtime: `OperatingSystem.IsWindows() ? WindowsNetworkSe
   disabled adapters (WMI `ConfigManagerErrorCode == 22`) are *not* reported by the IP stack, so they come from WMI only. Identity is the adapter
   **GUID** (`AdapterInfo.Id`), not the interface index (disabled adapters may have none). Enable/disable = WMI `Enable()/Disable()` looked up by GUID
   (the id is `Guid.TryParse`-validated before entering a WQL string).
-- **Profiles**: IPv4 settings + the adapter's static routes; adapter matched by name then MAC.
+- **Profiles**: IPv4 settings + the adapter's static routes; adapter matched by name then MAC. **Default routes (0.0.0.0/0) are never stored** — a default gateway is part of
+  `Ipv4.Gateways` (Windows lists a manual gateway as a static 0.0.0.0/0 route, so saving used to copy it; activating then failed with error 5010). `ProfileStore.Load` strips them from old files.
+  Activation treats `NetworkErrorKind.AlreadyExists` (Win32 5010) as success. **Never decide on error *text*** — messages are localized; give `NetworkOperationException` a `Kind` instead
+  (this exact bug: matching the English word "exists" stopped working when the UI was Russian).
 - **Removing virtual adapters** (Maintenance page): `RemovalPolicy` (Core/Models/Removal.cs) is an **allow-list** — removable only when the driver service is
   `VBoxNetAdp`/`VBoxNetAdp6`/`VMnetAdapter` **and** the adapter isn't hardware. Order of evaluation: hardware (PhysicalAdapter flag or PnP id prefix
   `PCI\ USB\ BTH\ …`) → Hyper-V/WSL → allow-list → Microsoft system → unknown (protected). `WindowsNetworkService.RemoveAdapterAsync` **re-reads facts from
