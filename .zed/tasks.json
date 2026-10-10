@@ -1,0 +1,56 @@
+[
+  {
+    "label": "NetManager: run",
+    "command": "dotnet",
+    "args": ["run", "--project", "src/NetManager.App"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "NetManager: run (--no-elevate, for debugging on Windows)",
+    "command": "dotnet",
+    "args": ["run", "--project", "src/NetManager.App", "--", "--no-elevate"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "NetManager: build",
+    "command": "dotnet",
+    "args": ["build", "NetManager.slnx"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "NetManager: test",
+    "command": "dotnet",
+    "args": ["test"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "NetManager: publish Windows x64",
+    "command": "./publish-win.sh",
+    "args": ["win-x64"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "NetManager: publish Windows ARM64",
+    "command": "./publish-win.sh",
+    "args": ["win-arm64"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  }
+]

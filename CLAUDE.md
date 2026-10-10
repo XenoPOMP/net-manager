@@ -19,6 +19,9 @@ dotnet run --project src/NetManager.App            # runs with demo data (MockNe
 ./publish-win.sh [win-x64|win-x86|win-arm64]       # self-contained single-file NetManager.exe -> publish/<rid>/
 ```
 
+Zed users: the same commands are ready-made tasks in `.zed/tasks.json` (`task: spawn` / `cmd-shift-p`). Zed (like the CLI) does a full MSBuild build, so the Rider
+"reduced build" problems below don't apply there. Debugging C# in Zed isn't built in (needs a community `netcoredbg` setup); not configured here.
+
 Always finish a change with `dotnet build NetManager.slnx` (expect 0 errors, 0 warnings) and `dotnet test`.
 Because output is Russian, grep for `error|Ошибок|Предупреждений` and `Пройден|Неудач`, or just read the tail.
 
