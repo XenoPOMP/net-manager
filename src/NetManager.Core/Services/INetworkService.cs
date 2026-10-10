@@ -17,6 +17,19 @@ public interface INetworkService
     Task RenewDhcpLeaseAsync(int interfaceIndex, CancellationToken ct = default);
     Task FlushDnsCacheAsync(CancellationToken ct = default);
 
+    /// <summary>
+    /// Uninstalls a virtual adapter. Implementations must refuse (throw <see cref="NetworkOperationException"/>) anything
+    /// <see cref="RemovalPolicy"/> does not allow, whatever the caller asked for.
+    /// </summary>
+    Task RemoveAdapterAsync(string adapterId, CancellationToken ct = default);
+
+    /// <summary>Asks Windows to re-detect hardware; brings back physical adapters whose device was uninstalled.</summary>
+    Task RescanHardwareAsync(CancellationToken ct = default);
+
+    /// <summary>True when VirtualBox is installed so removed host-only adapters can be recreated.</summary>
+    bool CanCreateVirtualBoxAdapter { get; }
+    Task CreateVirtualBoxAdapterAsync(CancellationToken ct = default);
+
     Task<IReadOnlyList<RouteEntry>> GetRoutesAsync(CancellationToken ct = default);
     Task AddRouteAsync(RouteRequest route, CancellationToken ct = default);
     Task DeleteRouteAsync(RouteEntry route, CancellationToken ct = default);

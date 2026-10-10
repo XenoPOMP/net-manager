@@ -48,6 +48,7 @@
               <StackPanel>
                 <TextBlock Classes="h1" Text="{Binding Name}" />
                 <TextBlock Classes="muted" Text="{Binding Description}" />
+                <TextBlock Classes="muted" FontSize="12" Text="{Binding RemovalNote}" TextWrapping="Wrap" MaxWidth="560" />
               </StackPanel>
               <Button Grid.Column="1" VerticalAlignment="Top" x:CompileBindings="False"
                       Content="{Binding $parent[UserControl].DataContext.ToggleEnabledText}"

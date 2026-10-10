@@ -21,7 +21,7 @@ public partial class App : Application
             INetworkService network = OperatingSystem.IsWindows() ? new WindowsNetworkService() : new MockNetworkService();
             var settings = new SettingsStore();
             Loc.SetLanguage(settings.Load().Language ?? Loc.DetectSystemLanguage());
-            desktop.MainWindow = new MainWindow { DataContext = new MainViewModel(network, new ProfileStore(), settings) };
+            desktop.MainWindow = new MainWindow { DataContext = new MainViewModel(network, new ProfileStore(), settings, new RecoveryStore()) };
         }
         base.OnFrameworkInitializationCompleted();
     }

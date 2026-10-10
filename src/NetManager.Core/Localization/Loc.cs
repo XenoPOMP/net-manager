@@ -15,6 +15,7 @@ public sealed class Loc : INotifyPropertyChanged
     public static IReadOnlyList<string> Supported { get; } = ["en", "ru"];
 
     public static string Language { get; private set; } = "en";
+    public static CultureInfo Culture => _culture;
     private static CultureInfo _culture = new("en-US");
     private static IReadOnlyDictionary<string, string> _table = EnglishStrings.Table;
 

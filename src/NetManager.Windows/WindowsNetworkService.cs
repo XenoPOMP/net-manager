@@ -65,8 +65,14 @@ public sealed class WindowsNetworkService : INetworkService
             else status = nic.OperationalStatus == OperationalStatus.Up ? AdapterStatus.Connected : AdapterStatus.Disconnected;
 
             var mac = nic.GetPhysicalAddress().ToString();
+            var facts = wmi.FirstOrDefault(w => w.Guid.Equals(nic.Id, StringComparison.OrdinalIgnoreCase))?.Facts;
             result.Add(new AdapterInfo
             {
+                PnpId = facts?.PnpId,
+                Service = facts?.Service,
+                IsHardware = facts is not null && RemovalPolicy.IsHardware(facts),
+                // Without WMI facts we know nothing about the device, so it stays protected.
+                Removal = facts is null ? RemovalDecision.Unknown : RemovalPolicy.Evaluate(facts),
                 Id = nic.Id,
                 InterfaceIndex = v4.Index,
                 Name = nic.Name,
@@ -85,6 +91,10 @@ public sealed class WindowsNetworkService : INetworkService
         {
             result.Add(new AdapterInfo
             {
+                PnpId = w.PnpId,
+                Service = w.Service,
+                IsHardware = RemovalPolicy.IsHardware(w.Facts),
+                Removal = RemovalPolicy.Evaluate(w.Facts),
                 Id = w.Guid,
                 InterfaceIndex = w.InterfaceIndex,
                 Name = w.Name,
@@ -127,7 +137,11 @@ public sealed class WindowsNetworkService : INetworkService
         return !string.IsNullOrWhiteSpace(key?.GetValue("NameServer") as string);
     }
 
-    private sealed record WmiAdapter(string Guid, int InterfaceIndex, string Name, string Description, string? Mac, bool Disabled);
+    private sealed record WmiAdapter(string Guid, int InterfaceIndex, string Name, string Description, string? Mac, bool Disabled,
+        string? PnpId, string? Service, string? Manufacturer, bool? Physical)
+    {
+        public AdapterFacts Facts => new(PnpId, Service, Manufacturer, Description, Physical);
+    }
 
     /// <summary>Win32_NetworkAdapter rows that have a connection name (what ncpa.cpl lists). ConfigManagerErrorCode 22 = device disabled.</summary>
     private static List<WmiAdapter> ReadWmiAdapters()
@@ -136,7 +150,7 @@ public sealed class WindowsNetworkService : INetworkService
         try
         {
             using var s = new ManagementObjectSearcher(
-                "SELECT GUID, InterfaceIndex, NetConnectionID, Name, MACAddress, ConfigManagerErrorCode FROM Win32_NetworkAdapter WHERE NetConnectionID IS NOT NULL");
+                "SELECT GUID, InterfaceIndex, NetConnectionID, Name, MACAddress, ConfigManagerErrorCode, PNPDeviceID, ServiceName, Manufacturer, PhysicalAdapter FROM Win32_NetworkAdapter WHERE NetConnectionID IS NOT NULL");
             foreach (ManagementObject o in s.Get())
             {
                 using (o)
@@ -148,7 +162,11 @@ public sealed class WindowsNetworkService : INetworkService
                         o["NetConnectionID"] as string ?? (o["Name"] as string ?? guid),
                         o["Name"] as string ?? "",
                         o["MACAddress"] as string,
-                        o["ConfigManagerErrorCode"] is not null && Convert.ToUInt32(o["ConfigManagerErrorCode"]) == 22));
+                        o["ConfigManagerErrorCode"] is not null && Convert.ToUInt32(o["ConfigManagerErrorCode"]) == 22,
+                        o["PNPDeviceID"] as string,
+                        o["ServiceName"] as string,
+                        o["Manufacturer"] as string,
+                        o["PhysicalAdapter"] as bool?));
                 }
             }
         }
@@ -237,6 +255,70 @@ public sealed class WindowsNetworkService : INetworkService
                     return;
                 }
             throw new NetworkOperationException(Loc.T("err.adapterGone"));
+        }, ct);
+
+    public Task RemoveAdapterAsync(string adapterId, CancellationToken ct = default) =>
+        Task.Run(() =>
+        {
+            RequireAdmin();
+            if (!Guid.TryParse(adapterId, out var guid)) throw new NetworkOperationException(Loc.T("err.badAdapterId"));
+
+            // Re-read the facts from the system and decide again: the caller's opinion about the adapter is irrelevant.
+            var wmi = ReadWmiAdapters().FirstOrDefault(w => Guid.TryParse(w.Guid, out var g) && g == guid)
+                ?? throw new NetworkOperationException(Loc.T("err.adapterGone"));
+            var decision = RemovalPolicy.Evaluate(wmi.Facts);
+            if (!decision.Allowed)
+                throw new NetworkOperationException(Loc.T("err.removeProtected", wmi.Name, Loc.T(decision.ReasonKey)));
+            if (string.IsNullOrWhiteSpace(wmi.PnpId)) throw new NetworkOperationException(Loc.T("err.noPnpId"));
+
+            RunPnpUtil("/remove-device", wmi.PnpId);
+        }, ct);
+
+    public Task RescanHardwareAsync(CancellationToken ct = default) =>
+        Task.Run(() =>
+        {
+            RequireAdmin();
+            RunPnpUtil("/scan-devices");
+        }, ct);
+
+    private static void RunPnpUtil(params string[] args)
+    {
+        // "pnputil /remove-device" exists from Windows 10 version 2004 (build 19041).
+        if (args[0] == "/remove-device" && Environment.OSVersion.Version.Build < 19041)
+            throw new NetworkOperationException(Loc.T("err.pnputilMissing"));
+
+        var exe = Path.Combine(Environment.SystemDirectory, "pnputil.exe");
+        ToolRunner.Result r;
+        try { r = ToolRunner.Run(exe, args); }
+        catch (System.ComponentModel.Win32Exception) { throw new NetworkOperationException(Loc.T("err.pnputilMissing")); }
+        // 3010 = success, a reboot is needed to finish.
+        if (r.ExitCode is 0 or 3010) return;
+        throw new NetworkOperationException(Loc.T("err.pnputil", "pnputil " + args[0], r.ExitCode, r.Output));
+    }
+
+    // ---- VirtualBox (recreate removed host-only adapters)
+
+    private static string? FindVBoxManage()
+    {
+        var dirs = new[]
+        {
+            Environment.GetEnvironmentVariable("VBOX_MSI_INSTALL_PATH"),
+            Environment.GetEnvironmentVariable("VBOX_INSTALL_PATH"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Oracle", "VirtualBox"),
+        };
+        return dirs.Where(d => !string.IsNullOrWhiteSpace(d))
+            .Select(d => Path.Combine(d!, "VBoxManage.exe")).FirstOrDefault(File.Exists);
+    }
+
+    public bool CanCreateVirtualBoxAdapter => FindVBoxManage() is not null;
+
+    public Task CreateVirtualBoxAdapterAsync(CancellationToken ct = default) =>
+        Task.Run(() =>
+        {
+            RequireAdmin();
+            var exe = FindVBoxManage() ?? throw new NetworkOperationException(Loc.T("err.vboxMissing"));
+            var r = ToolRunner.Run(exe, ["hostonlyif", "create"]);
+            if (r.ExitCode != 0) throw new NetworkOperationException(Loc.T("err.pnputil", "VBoxManage hostonlyif create", r.ExitCode, r.Output));
         }, ct);
 
     public Task RenewDhcpLeaseAsync(int interfaceIndex, CancellationToken ct = default) =>

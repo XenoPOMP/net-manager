@@ -21,6 +21,8 @@ public sealed class MockNetworkService : INetworkService
             {
                 Id = "{MOCK-ETH}", InterfaceIndex = 12, Name = "Ethernet", Description = "Intel(R) Ethernet Connection I219-V",
                 Kind = AdapterKind.Ethernet, Status = AdapterStatus.Connected, MacAddress = "3C:EC:EF:12:34:56",
+                PnpId = @"PCI\VEN_8086&DEV_15BC\3&11583659&0&FE", Service = "e1dexpress", IsHardware = true,
+                Removal = new(false, "removal.hardware"),
                 SpeedBitsPerSecond = 1_000_000_000, Mtu = 1500, DhcpServer = "192.168.1.1",
                 Ipv4 = new Ipv4Config
                 {
@@ -32,6 +34,8 @@ public sealed class MockNetworkService : INetworkService
             {
                 Id = "{MOCK-WIFI}", InterfaceIndex = 7, Name = "Wi-Fi", Description = "Intel(R) Wi-Fi 6 AX201 160MHz",
                 Kind = AdapterKind.Wireless, Status = AdapterStatus.Disconnected, MacAddress = "A4:C3:F0:AA:BB:CC",
+                PnpId = @"PCI\VEN_8086&DEV_2723\4&2A1B3C&0&00E2", Service = "Netwtw10", IsHardware = true,
+                Removal = new(false, "removal.hardware"),
                 SpeedBitsPerSecond = 0, Mtu = 1500,
                 Ipv4 = new Ipv4Config { Method = Ipv4Method.Automatic },
             },
@@ -39,12 +43,16 @@ public sealed class MockNetworkService : INetworkService
             {
                 Id = "{MOCK-WSL}", InterfaceIndex = 21, Name = "vEthernet (WSL)", Description = "Hyper-V Virtual Ethernet Adapter",
                 Kind = AdapterKind.Virtual, Status = AdapterStatus.Connected, MacAddress = "00:15:5D:01:02:03",
+                PnpId = @"ROOT\VMS_MP\0000", Service = "VMSMP", Removal = new(false, "removal.hyperv"),
                 SpeedBitsPerSecond = 10_000_000_000, Mtu = 1500,
                 Ipv4 = new Ipv4Config
                 {
                     Method = Ipv4Method.Manual, Addresses = [new("172.25.96.1", 20)], DnsAutomatic = true,
                 },
             },
+            VBox(2, 3, "192.168.56.1"),
+            VBox(3, 4, "192.168.57.1"),
+            VBox(4, 5, "192.168.58.1"),
         ];
 
         _routes =
@@ -60,6 +68,15 @@ public sealed class MockNetworkService : INetworkService
         ];
         FixInterfaceNames();
     }
+
+    private static AdapterInfo VBox(int n, int index, string ip) => new()
+    {
+        Id = $"{{MOCK-VBOX-{n}}}", InterfaceIndex = 30 + index, Name = $"Ethernet {n}",
+        Description = $"VirtualBox Host-Only Ethernet Adapter #{n}", Kind = AdapterKind.Virtual, Status = AdapterStatus.Connected,
+        MacAddress = $"0A:00:27:00:00:{n:X2}", SpeedBitsPerSecond = 1_000_000_000, Mtu = 1500,
+        PnpId = $@"ROOT\NET\{n:D4}", Service = "VBoxNetAdp6", Removal = new(true, "removal.ok"),
+        Ipv4 = new Ipv4Config { Method = Ipv4Method.Manual, Addresses = [new(ip, 24)], DnsAutomatic = true },
+    };
 
     private RouteEntry Route(string dest, int prefix, string? hop, int ifIndex, int metric, int ifMetric, RouteKind kind, string proto, bool persistent = false) =>
         new()
@@ -114,6 +131,37 @@ public sealed class MockNetworkService : INetworkService
             int i = _adapters.FindIndex(a => a.Id == adapterId);
             if (i < 0) throw new NetworkOperationException(Loc.T("mock.noAdapter"));
             _adapters[i] = _adapters[i] with { Status = enabled ? AdapterStatus.Connected : AdapterStatus.Disabled };
+        }
+    }
+
+    public async Task RemoveAdapterAsync(string adapterId, CancellationToken ct = default)
+    {
+        await Delay(ct);
+        lock (_gate)
+        {
+            var a = _adapters.FirstOrDefault(x => x.Id == adapterId) ?? throw new NetworkOperationException(Loc.T("mock.noAdapter"));
+            // Same rule the Windows backend enforces: whatever the UI asks, protected adapters stay.
+            var decision = RemovalPolicy.Evaluate(new AdapterFacts(a.PnpId, a.Service, null, a.Description, a.IsHardware));
+            if (!decision.Allowed) throw new NetworkOperationException(Loc.T("err.removeProtected", a.Name, Loc.T(decision.ReasonKey)));
+            _adapters.Remove(a);
+        }
+    }
+
+    public Task RescanHardwareAsync(CancellationToken ct = default) => Delay(ct);
+
+    public bool CanCreateVirtualBoxAdapter => true;
+
+    public async Task CreateVirtualBoxAdapterAsync(CancellationToken ct = default)
+    {
+        await Delay(ct);
+        lock (_gate)
+        {
+            int n = 1;
+            while (_adapters.Any(a => a.Description.EndsWith($"#{n}"))) n++;
+            _adapters.Add(VBox(n, n + 5, $"192.168.{55 + n}.1") with
+            {
+                Ipv4 = new Ipv4Config { Method = Ipv4Method.Manual, Addresses = [new("192.168.56.1", 24)], DnsAutomatic = true },
+            });
         }
     }
 

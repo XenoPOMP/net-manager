@@ -21,6 +21,13 @@ public sealed record AdapterInfo
     public long SpeedBitsPerSecond { get; init; }
     public int Mtu { get; init; }
     public string? DhcpServer { get; init; }
+    /// <summary>Device instance id (e.g. "PCI\VEN_8086…" or "ROOT\NET\0002"); null when unknown.</summary>
+    public string? PnpId { get; init; }
+    /// <summary>Driver service name (e.g. "VBoxNetAdp6").</summary>
+    public string? Service { get; init; }
+    /// <summary>Real bus-attached hardware (as opposed to a software adapter).</summary>
+    public bool IsHardware { get; init; }
+    public RemovalDecision Removal { get; init; } = RemovalDecision.Unknown;
     public required Ipv4Config Ipv4 { get; init; }
 
     public bool IsEnabled => Status != AdapterStatus.Disabled;
@@ -42,5 +49,8 @@ public sealed record AdapterInfo
         >= 1_000_000_000 => Loc.T("speed.gbit", SpeedBitsPerSecond / 1_000_000_000.0),
         _ => Loc.T("speed.mbit", SpeedBitsPerSecond / 1_000_000.0),
     };
+    public bool CanRemove => Removal.Allowed;
+    /// <summary>One line for the detail panel: why the adapter is protected, or where it can be removed.</summary>
+    public string RemovalNote => Removal.Allowed ? Loc.T("removal.ok") : Loc.T("conn.protected", Loc.T(Removal.ReasonKey));
     public bool CanConfigure => Kind != AdapterKind.Loopback;
 }

@@ -1,0 +1,116 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NetManager.App.ViewModels"
+             xmlns:loc="using:NetManager.App.Localization"
+             x:Class="NetManager.App.Views.MaintenanceView"
+             x:DataType="vm:MaintenanceViewModel">
+
+  <ScrollViewer>
+    <StackPanel Spacing="16" Margin="0,0,12,0">
+      <TextBlock Classes="h1" Text="{loc:T maint.title}" />
+
+      <!-- ===================== virtual adapters ===================== -->
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h2" Text="{loc:T maint.virtual.title}" />
+          <TextBlock Classes="muted" TextWrapping="Wrap" Text="{loc:T maint.virtual.hint}" />
+
+          <TextBlock IsVisible="{Binding NoRemovable}" Text="{loc:T maint.virtual.none}" />
+
+          <ItemsControl ItemsSource="{Binding Removable}" IsVisible="{Binding HasRemovable}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:RemovableItem">
+                <CheckBox IsChecked="{Binding IsChecked}" Margin="0,2">
+                  <StackPanel Margin="4,0,0,0">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                    <TextBlock Classes="muted" FontSize="12" Text="{Binding Subtitle}" />
+                  </StackPanel>
+                </CheckBox>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <WrapPanel IsVisible="{Binding HasRemovable}">
+            <Button Content="{loc:T maint.selectAll}" Command="{Binding SelectAllCommand}" Margin="0,0,8,0" />
+            <Button Classes="danger" Content="{loc:T maint.deleteSelected}" Command="{Binding DeleteSelectedCommand}" Margin="0,0,12,0" />
+            <TextBlock Classes="muted" VerticalAlignment="Center" Text="{Binding SelectedCountText}" />
+          </WrapPanel>
+
+          <!-- inline confirmation -->
+          <Border Classes="card" IsVisible="{Binding Confirming}" BorderBrush="#C42B1C">
+            <StackPanel Spacing="10">
+              <TextBlock TextWrapping="Wrap" Text="{loc:T maint.confirm}" />
+              <WrapPanel>
+                <Button Classes="danger" Content="{loc:T maint.confirmDelete}" Command="{Binding ConfirmDeleteCommand}" Margin="0,0,8,0" />
+                <Button Content="{loc:T common.cancel}" Command="{Binding CancelDeleteCommand}" />
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+
+          <TextBlock Classes="muted" FontSize="12" IsVisible="{Binding HasProtected}" Text="{Binding ProtectedNote}" />
+        </StackPanel>
+      </Border>
+
+      <!-- ===================== hardware adapters / restore ===================== -->
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h2" Text="{loc:T maint.hw.title}" />
+          <TextBlock Classes="muted" TextWrapping="Wrap" Text="{loc:T maint.hw.hint}" />
+
+          <TextBlock IsVisible="{Binding NoMissing}" Text="{loc:T maint.hw.ok}" />
+          <TextBlock IsVisible="{Binding HasMissing}" TextWrapping="Wrap" FontWeight="SemiBold" Text="{loc:T maint.hw.missing}" />
+
+          <ItemsControl ItemsSource="{Binding Missing}" IsVisible="{Binding HasMissing}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:MissingItem">
+                <Grid ColumnDefinitions="*,Auto" Margin="0,3">
+                  <StackPanel>
+                    <TextBlock Text="{Binding Title}" />
+                    <TextBlock Classes="muted" FontSize="12" Text="{Binding Subtitle}" />
+                  </StackPanel>
+                  <Button Grid.Column="1" Content="{loc:T maint.hw.forget}" VerticalAlignment="Center"
+                          x:CompileBindings="False"
+                          Command="{Binding $parent[ItemsControl].DataContext.ForgetMissingCommand}"
+                          CommandParameter="{Binding}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <Button Classes="accent" HorizontalAlignment="Left" Content="{loc:T maint.hw.rescan}" Command="{Binding RescanCommand}" />
+        </StackPanel>
+      </Border>
+
+      <!-- ===================== recently removed ===================== -->
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h2" Text="{loc:T maint.removed.title}" />
+          <TextBlock Classes="muted" TextWrapping="Wrap" Text="{loc:T maint.removed.hint}" />
+          <TextBlock IsVisible="{Binding NoRemoved}" Text="{loc:T maint.removed.none}" />
+          <TextBlock IsVisible="{Binding CannotRecreate}" Foreground="#E5484D" TextWrapping="Wrap" Text="{loc:T maint.removed.noVbox}" />
+
+          <ItemsControl ItemsSource="{Binding Removed}" IsVisible="{Binding HasRemoved}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:RemovedItem">
+                <Grid ColumnDefinitions="*,Auto,8,Auto" Margin="0,3">
+                  <StackPanel>
+                    <TextBlock Text="{Binding Title}" />
+                    <TextBlock Classes="muted" FontSize="12" Text="{Binding Subtitle}" />
+                  </StackPanel>
+                  <Button Grid.Column="1" Content="{loc:T maint.removed.restore}" VerticalAlignment="Center"
+                          IsVisible="{Binding CanRestore}" x:CompileBindings="False"
+                          Command="{Binding $parent[ItemsControl].DataContext.RecreateCommand}"
+                          CommandParameter="{Binding}" />
+                  <Button Grid.Column="3" Content="{loc:T maint.removed.forget}" VerticalAlignment="Center"
+                          x:CompileBindings="False"
+                          Command="{Binding $parent[ItemsControl].DataContext.ForgetRemovedCommand}"
+                          CommandParameter="{Binding}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

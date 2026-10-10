@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using NetManager.Core.Localization;
 using NetManager.Core.Services;
 
@@ -30,8 +31,12 @@ public partial class MainViewModel : ObservableObject
     public string LanguageLabel => Loc.T("nav.language");
     public string AdminBanner => Loc.T("banner.admin");
     public bool ShowAdminWarning => !Network.CanModify;
+    public MaintenanceViewModel Maintenance { get; }
+    public bool ShowMissingBanner => Maintenance.HasMissing;
+    public string MissingBannerText => Loc.T("banner.missing", Maintenance.MissingNames);
+    public string MissingBannerButton => Loc.T("banner.missingOpen");
 
-    public MainViewModel(INetworkService network, ProfileStore store, SettingsStore settings)
+    public MainViewModel(INetworkService network, ProfileStore store, SettingsStore settings, RecoveryStore recovery)
     {
         Network = network;
         _settings = settings;
@@ -40,18 +45,30 @@ public partial class MainViewModel : ObservableObject
         var profiles = new ProfilesViewModel(network, store, Shell);
         var connections = new ConnectionsViewModel(network, profiles, Shell);
         var routes = new RoutesViewModel(network, Shell);
-        _pages = BuildPages(connections, routes, profiles);
+        // Anything that adds or removes adapters must refresh the other pages too.
+        Maintenance = new MaintenanceViewModel(network, recovery, Shell, async () => { await connections.RefreshAsync(); await routes.RefreshAsync(); });
+        Maintenance.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(MaintenanceViewModel.HasMissing) or nameof(MaintenanceViewModel.MissingNames))
+            {
+                OnPropertyChanged(nameof(ShowMissingBanner));
+                OnPropertyChanged(nameof(MissingBannerText));
+            }
+        };
+        _pages = BuildPages(connections, routes, profiles, Maintenance);
         SelectedPage = Pages[0];
 
         _ = connections.RefreshAsync();
         _ = routes.RefreshAsync();
+        _ = Maintenance.RefreshAsync();
     }
 
-    private static IReadOnlyList<NavItem> BuildPages(ObservableObject connections, ObservableObject routes, ObservableObject profiles) =>
+    private static IReadOnlyList<NavItem> BuildPages(ObservableObject connections, ObservableObject routes, ObservableObject profiles, ObservableObject maintenance) =>
     [
         new("nav.connections", "▣", connections),
         new("nav.routes", "⇄", routes),
         new("nav.profiles", "★", profiles),
+        new("nav.maintenance", "⚙", maintenance),
     ];
 
     partial void OnSelectedPageChanged(NavItem? value)
@@ -76,6 +93,11 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(Backend));
         OnPropertyChanged(nameof(LanguageLabel));
         OnPropertyChanged(nameof(AdminBanner));
+        OnPropertyChanged(nameof(MissingBannerText));
+        OnPropertyChanged(nameof(MissingBannerButton));
         Shell.Info(Loc.T("status.ready"));
     }
+
+    [RelayCommand]
+    private void OpenMaintenance() => SelectedPage = Pages.First(p => ReferenceEquals(p.Page, Maintenance));
 }

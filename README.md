@@ -12,6 +12,8 @@ A NetworkManager-style network settings app for Windows 10/11, written in C# / .
 | Add / delete static routes, optionally persistent (`route -p`) | ✅ |
 | Profiles: save adapter settings + its static routes, re-activate in one click | ✅ |
 | UI in English and Russian (follows the Windows UI language; switch live from the sidebar, saved in `%APPDATA%\NetManager\settings.json`) | ✅ |
+| Delete virtual adapters (VirtualBox/VMware host-only) with a confirmation step; hardware, Hyper-V/WSL and system adapters are protected | ✅ |
+| Restore: remembers hardware adapters, warns when one disappears, rescans hardware; recreates removed VirtualBox adapters with their IPv4 settings | ✅ |
 | IPv6, Wi-Fi scan/connect, VPN, proxy, MTU/MAC override, interface metric, DNS search suffixes, bridge/VLAN | ⏳ planned |
 
 ## Layout
@@ -25,6 +27,17 @@ tests/NetManager.Core.Tests
 
 The UI only talks to `INetworkService`. On Windows the app uses `WindowsNetworkService`; on macOS/Linux it falls back to
 `MockNetworkService` (demo data), so the whole UI can be developed and run without a Windows machine.
+
+## Removing virtual adapters — safety model
+
+`RemovalPolicy` (Core, unit-tested) is an **allow-list**: an adapter is removable only if its driver service is a known virtual one
+(`VBoxNetAdp`, `VBoxNetAdp6`, `VMnetAdapter`). Anything on a hardware bus (`PCI\`, `USB\`, `BTH\`…) or flagged `PhysicalAdapter`
+is protected first, then Hyper-V/WSL switches, Microsoft system adapters, and anything unrecognised. The Windows backend
+**re-reads the device facts and re-evaluates the policy right before removing** (`pnputil /remove-device`, Windows 10 2004+),
+so a UI bug cannot delete a hardware adapter. Before each removal the adapter's details and IPv4 settings go to
+`%APPDATA%\NetManager\recovery.json`; the same file remembers every hardware adapter seen. The Maintenance page offers
+*Rescan hardware* (`pnputil /scan-devices`) for hardware that was uninstalled by mistake, and *Recreate* for VirtualBox adapters
+(`VBoxManage hostonlyif create`, then the saved IPv4 settings are re-applied).
 
 ## Translations
 
@@ -60,4 +73,6 @@ On first run on a Windows 10 machine (as admin), check in this order — ideally
 3. Add a harmless static route (e.g. `10.99.0.0/24` via your gateway) → appears in `route print`; delete it → gone.
 4. Tick *Persistent*, add a route, check `HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\PersistentRoutes`.
 5. On a spare/virtual adapter: switch Manual ⇄ Automatic, change DNS, check with `ipconfig /all`.
-6. If setting a default gateway returns WMI error 68, report it — the code retries with a fixed metric of 1 first.
+6. Maintenance page: with VirtualBox installed, delete one *host-only* adapter → it disappears from Windows' Network Connections;
+   *Recreate* brings back a host-only adapter with its old IPv4 settings. Check that no hardware / Hyper-V adapter is ever listed as removable.
+7. If setting a default gateway returns WMI error 68, report it — the code retries with a fixed metric of 1 first.
