@@ -1,0 +1,49 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:NetManager.App.ViewModels"
+        x:Class="NetManager.App.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="NetManager" Width="1180" Height="760" MinWidth="900" MinHeight="560"
+        WindowStartupLocation="CenterScreen">
+
+  <Grid RowDefinitions="Auto,*,Auto">
+
+    <Border Grid.Row="0" Background="#B7791F" Padding="14,8" IsVisible="{Binding ShowAdminWarning}">
+      <TextBlock Foreground="White" TextWrapping="Wrap"
+                 Text="NetManager is not running as administrator — you can look at the configuration, but changes will be rejected by Windows." />
+    </Border>
+
+    <Grid Grid.Row="1" ColumnDefinitions="200,*">
+      <Border Grid.Column="0" Background="{DynamicResource NavBackground}" Padding="8,12">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="h2" Margin="10,2,0,8" Text="NetManager" />
+          <ListBox ItemsSource="{Binding Pages}" SelectedItem="{Binding SelectedPage}" Background="Transparent">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:NavItem">
+                <StackPanel Orientation="Horizontal" Spacing="12" Margin="2,6">
+                  <TextBlock Text="{Binding Glyph}" Width="20" TextAlignment="Center" FontSize="16" />
+                  <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </StackPanel>
+      </Border>
+
+      <ContentControl Grid.Column="1" Content="{Binding SelectedPage.Page}" Margin="20" />
+    </Grid>
+
+    <Border Grid.Row="2" Padding="14,6" Background="{DynamicResource NavBackground}"
+            DataContext="{Binding Shell}" x:DataType="vm:AppShell">
+      <Border.Styles>
+        <Style Selector="TextBlock.error"><Setter Property="Foreground" Value="#E5484D" /><Setter Property="FontWeight" Value="SemiBold" /></Style>
+      </Border.Styles>
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <ProgressBar Grid.Column="0" IsIndeterminate="True" IsVisible="{Binding IsBusy}" Width="80" Margin="0,0,12,0" />
+        <TextBlock Grid.Column="1" Text="{Binding Status}" TextTrimming="CharacterEllipsis"
+                   Classes.error="{Binding IsError}" />
+        <TextBlock Grid.Column="2" Classes="muted" Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).Backend}" />
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/NetManager.App/NetManager.App.csproj" />
+    <Project Path="src/NetManager.Core/NetManager.Core.csproj" />
+    <Project Path="src/NetManager.Windows/NetManager.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/NetManager.Core.Tests/NetManager.Core.Tests.csproj" />
+  </Folder>
+</Solution>

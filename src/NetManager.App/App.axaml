@@ -1,0 +1,50 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NetManager.App.ViewModels"
+             xmlns:v="using:NetManager.App.Views"
+             x:Class="NetManager.App.App"
+             RequestedThemeVariant="Default">
+
+  <Application.DataTemplates>
+    <DataTemplate DataType="vm:ConnectionsViewModel"><v:ConnectionsView /></DataTemplate>
+    <DataTemplate DataType="vm:RoutesViewModel"><v:RoutesView /></DataTemplate>
+    <DataTemplate DataType="vm:ProfilesViewModel"><v:ProfilesView /></DataTemplate>
+  </Application.DataTemplates>
+
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="NavBackground" Color="#F1F1F3" />
+          <SolidColorBrush x:Key="CardBackground" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="CardBorder" Color="#DDDDE2" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="NavBackground" Color="#202024" />
+          <SolidColorBrush x:Key="CardBackground" Color="#2A2A2F" />
+          <SolidColorBrush x:Key="CardBorder" Color="#3A3A41" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+
+    <Style Selector="TextBlock.h1"><Setter Property="FontSize" Value="22" /><Setter Property="FontWeight" Value="SemiBold" /></Style>
+    <Style Selector="TextBlock.h2"><Setter Property="FontSize" Value="15" /><Setter Property="FontWeight" Value="SemiBold" /></Style>
+    <Style Selector="TextBlock.muted"><Setter Property="Opacity" Value="0.65" /></Style>
+    <Style Selector="TextBlock.field"><Setter Property="Opacity" Value="0.75" /><Setter Property="Margin" Value="0,10,0,3" /></Style>
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="16" />
+    </Style>
+    <Style Selector="Ellipse.dot"><Setter Property="Width" Value="10" /><Setter Property="Height" Value="10" /><Setter Property="Fill" Value="Gray" /></Style>
+    <Style Selector="Ellipse.dot.on"><Setter Property="Fill" Value="#2EAD4B" /></Style>
+    <Style Selector="Ellipse.dot.off"><Setter Property="Fill" Value="#C94F4F" /></Style>
+  </Application.Styles>
+</Application>
