@@ -28,6 +28,8 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private ObservableObject? _currentPage;
 
     public string Backend => Network.BackendName;
+    /// <summary>Right end of the status bar: the backend and which build this is.</summary>
+    public string StatusRight => $"{Backend} · {BuildInfo.Text}";
     public string AdminBanner => Loc.T("banner.admin");
     public string AdminButton => Loc.T("banner.restartAdmin");
     /// <summary>Second banner line. Only present when there is something concrete to say about why we are still not elevated.</summary>
@@ -113,6 +115,7 @@ public partial class MainViewModel : ObservableObject
         CurrentPage = null;                                        // tear the page view down …
         CurrentPage = page;                                        // … and build it again in the new language
         OnPropertyChanged(nameof(Backend));
+        OnPropertyChanged(nameof(StatusRight));
         OnPropertyChanged(nameof(AdminBanner));
         OnPropertyChanged(nameof(AdminButton));
         OnPropertyChanged(nameof(AdminHint));

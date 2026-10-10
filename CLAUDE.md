@@ -27,6 +27,10 @@ Zed users: the same commands are ready-made tasks in `.zed/tasks.json` (incl. **
 Always finish a change with `dotnet build NetManager.slnx` (expect 0 errors, 0 warnings) and `dotnet test`.
 Because output is Russian, grep for `error|Ошибок|Предупреждений` and `Пройден|Неудач`, or just read the tail.
 
+**Stale-exe check:** the status bar (bottom right) shows `v0.1.0 · build <local time>`. When the user says a fix "persisted", first compare that stamp with the publish
+time: the user runs the exe on a Windows VM and has to copy each new `publish/<rid>/NetManager.exe` there by hand (suspected once already: a Profiles error that the
+new build could not produce was still showing, together with old summary text that the new build strips on load).
+
 ## Layout
 
 ```

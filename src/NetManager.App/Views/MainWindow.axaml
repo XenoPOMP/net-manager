@@ -74,7 +74,7 @@
         <ProgressBar Grid.Column="0" IsIndeterminate="True" IsVisible="{Binding IsBusy}" Width="80" Margin="0,0,12,0" />
         <TextBlock Grid.Column="1" Text="{Binding Status}" TextTrimming="CharacterEllipsis"
                    Classes.error="{Binding IsError}" />
-        <TextBlock Grid.Column="2" Classes="muted" Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).Backend}" />
+        <TextBlock Grid.Column="2" Classes="muted" Text="{Binding $parent[Window].((vm:MainViewModel)DataContext).StatusRight}" />
       </Grid>
     </Border>
   </Grid>
