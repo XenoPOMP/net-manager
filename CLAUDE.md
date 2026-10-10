@@ -88,7 +88,7 @@ and pick the backend at runtime: `OperatingSystem.IsWindows() ? WindowsNetworkSe
   (2) `Program.Main` → `Elevation.TryRelaunch` relaunches elevated once via `ShellExecute "runas"` when started un-elevated (`dotnet run`, IDE, non-elevated parent);
   the relaunched copy gets `--elevation-attempted` so a failed elevation can't loop, and `--no-elevate` skips the whole thing for debugging; command line is built with
   the unit-tested `CommandLine.Join` (Core); (3) if still not elevated (UAC declined) the app runs read-only: `CanModify` is false, an orange banner with a
-  **Restart as administrator** button (`MainViewModel.RestartElevatedCommand`) is shown, and the backend's `RequireAdmin` rejects every write anyway.
+  **Elevate privileges** button (`MainViewModel.RestartElevatedCommand`; orange `#D9480F` strip at the very top — the red strip under it is the missing-hardware one) is shown, and the backend's `RequireAdmin` rejects every write anyway.
   Note: a non-elevated parent that launches the exe with plain CreateProcess gets Windows error 740 before `Main` runs — nothing the app can do; run the IDE as admin.
 
 ## Localization (EN/RU)
@@ -150,6 +150,7 @@ Seed `recovery.json` in the temp dir to see the "missing hardware" / "recently r
 - Safety-sensitive logic (removal policy, validation) lives in **Core as pure functions with unit tests**; backends enforce it again.
 - Backend errors are thrown as `NetworkOperationException(Loc.T(...))`; WMI return codes map through `wmi.<code>` keys (`DescribeWmiError`).
 - Mock must mirror real behaviour where the UI depends on it (e.g. it enforces `RemovalPolicy` too), so the demo can't hide logic bugs.
+  `MockNetworkService(canModify: false)` also refuses every write like an un-elevated Windows session (tested); preview that state on macOS with `NETMANAGER_DEMO_READONLY=1 dotnet run --project src/NetManager.App`.
 - Don't commit unless asked. The repo has a `.git` that appeared during the session (likely created by Rider); nothing has been committed by Claude.
 
 ## Unverified on real Windows (check first when the user reports problems)

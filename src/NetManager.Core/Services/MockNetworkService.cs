@@ -11,10 +11,13 @@ public sealed class MockNetworkService : INetworkService
     private readonly List<RouteEntry> _routes;
 
     public string BackendName => Loc.T("mock.backend");
-    public bool CanModify => true;
+    public bool CanModify { get; }
 
-    public MockNetworkService()
+    /// <summary>Lets the demo behave like an un-elevated Windows session (<paramref name="canModify"/> = false): reads work, every change is refused.</summary>
+
+    public MockNetworkService(bool canModify = true)
     {
+        CanModify = canModify;
         _adapters =
         [
             new()
@@ -94,6 +97,11 @@ public sealed class MockNetworkService : INetworkService
     private string NameOf(int ifIndex) =>
         ifIndex == 1 ? "Loopback" : _adapters.FirstOrDefault(a => a.InterfaceIndex == ifIndex)?.Name ?? $"#{ifIndex}";
 
+    private void RequireWrite()
+    {
+        if (!CanModify) throw new NetworkOperationException(Loc.T("err.admin"));
+    }
+
     private static Task Delay(CancellationToken ct) => Task.Delay(250, ct);
 
     public async Task<IReadOnlyList<AdapterInfo>> GetAdaptersAsync(CancellationToken ct = default)
@@ -104,6 +112,7 @@ public sealed class MockNetworkService : INetworkService
 
     public async Task ApplyIpv4Async(int interfaceIndex, Ipv4Config config, CancellationToken ct = default)
     {
+        RequireWrite();
         await Delay(ct);
         var problems = Ipv4Util.Validate(config);
         if (problems.Count > 0) throw new NetworkOperationException(string.Join(Environment.NewLine, problems));
@@ -125,6 +134,7 @@ public sealed class MockNetworkService : INetworkService
 
     public async Task SetAdapterEnabledAsync(string adapterId, bool enabled, CancellationToken ct = default)
     {
+        RequireWrite();
         await Delay(ct);
         lock (_gate)
         {
@@ -136,6 +146,7 @@ public sealed class MockNetworkService : INetworkService
 
     public async Task RemoveAdapterAsync(string adapterId, CancellationToken ct = default)
     {
+        RequireWrite();
         await Delay(ct);
         lock (_gate)
         {
@@ -147,12 +158,13 @@ public sealed class MockNetworkService : INetworkService
         }
     }
 
-    public Task RescanHardwareAsync(CancellationToken ct = default) => Delay(ct);
+    public Task RescanHardwareAsync(CancellationToken ct = default) { RequireWrite(); return Delay(ct); }
 
     public bool CanCreateVirtualBoxAdapter => true;
 
     public async Task CreateVirtualBoxAdapterAsync(CancellationToken ct = default)
     {
+        RequireWrite();
         await Delay(ct);
         lock (_gate)
         {
@@ -165,8 +177,8 @@ public sealed class MockNetworkService : INetworkService
         }
     }
 
-    public Task RenewDhcpLeaseAsync(int interfaceIndex, CancellationToken ct = default) => Delay(ct);
-    public Task FlushDnsCacheAsync(CancellationToken ct = default) => Delay(ct);
+    public Task RenewDhcpLeaseAsync(int interfaceIndex, CancellationToken ct = default) { RequireWrite(); return Delay(ct); }
+    public Task FlushDnsCacheAsync(CancellationToken ct = default) { RequireWrite(); return Delay(ct); }
 
     public async Task<IReadOnlyList<RouteEntry>> GetRoutesAsync(CancellationToken ct = default)
     {
@@ -176,6 +188,7 @@ public sealed class MockNetworkService : INetworkService
 
     public async Task AddRouteAsync(RouteRequest route, CancellationToken ct = default)
     {
+        RequireWrite();
         await Delay(ct);
         lock (_gate)
         {
@@ -189,6 +202,7 @@ public sealed class MockNetworkService : INetworkService
 
     public async Task DeleteRouteAsync(RouteEntry route, CancellationToken ct = default)
     {
+        RequireWrite();
         await Delay(ct);
         lock (_gate) _routes.RemoveAll(r => r.Destination == route.Destination && r.PrefixLength == route.PrefixLength
             && r.NextHop == route.NextHop && r.InterfaceIndex == route.InterfaceIndex);

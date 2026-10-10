@@ -10,18 +10,18 @@
   <Grid RowDefinitions="Auto,Auto,*,Auto">
 
     <!-- Texts that stay on screen across a language change are bound to view-model properties. -->
-    <Border Grid.Row="0" Background="#B7791F" Padding="14,8" IsVisible="{Binding ShowAdminWarning}">
+    <Border Grid.Row="0" Background="#D9480F" Padding="14,8" IsVisible="{Binding ShowAdminWarning}">
       <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Foreground="White" TextWrapping="Wrap" VerticalAlignment="Center" Text="{Binding AdminBanner}" />
-        <Button Grid.Column="1" Margin="12,0,0,0" Content="{Binding AdminButton}" Command="{Binding RestartElevatedCommand}" />
+        <TextBlock Foreground="White" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" Text="{Binding AdminBanner}" />
+        <Button Classes="banner" Grid.Column="1" Margin="12,0,0,0" Content="{Binding AdminButton}" Command="{Binding RestartElevatedCommand}" />
       </Grid>
     </Border>
 
     <!-- Hardware adapters that used to be here are gone: point the user at the restore page. -->
-    <Border Grid.Row="1" Background="#C2410C" Padding="14,8" IsVisible="{Binding ShowMissingBanner}">
+    <Border Grid.Row="1" Background="#B42318" Padding="14,8" IsVisible="{Binding ShowMissingBanner}">
       <Grid ColumnDefinitions="*,Auto">
         <TextBlock Foreground="White" TextWrapping="Wrap" VerticalAlignment="Center" Text="{Binding MissingBannerText}" />
-        <Button Grid.Column="1" Margin="12,0,0,0" Content="{Binding MissingBannerButton}" Command="{Binding OpenMaintenanceCommand}" />
+        <Button Classes="banner" Grid.Column="1" Margin="12,0,0,0" Content="{Binding MissingBannerButton}" Command="{Binding OpenMaintenanceCommand}" />
       </Grid>
     </Border>
 

@@ -149,3 +149,30 @@ public class RecoveryTests
         finally { File.Delete(path); }
     }
 }
+
+public class ReadOnlyBackendTests
+{
+    [Fact]
+    public async Task UnelevatedMockCanReadButRefusesEveryChange()
+    {
+        var net = new MockNetworkService(canModify: false);
+        Assert.False(net.CanModify);
+
+        // reading still works
+        var adapters = await net.GetAdaptersAsync();
+        Assert.NotEmpty(adapters);
+        Assert.NotEmpty(await net.GetRoutesAsync());
+
+        var a = adapters.First();
+        await Assert.ThrowsAsync<NetworkOperationException>(() => net.ApplyIpv4Async(a.InterfaceIndex, new()));
+        await Assert.ThrowsAsync<NetworkOperationException>(() => net.SetAdapterEnabledAsync(a.Id, false));
+        await Assert.ThrowsAsync<NetworkOperationException>(() => net.RemoveAdapterAsync(adapters.First(x => x.CanRemove).Id));
+        await Assert.ThrowsAsync<NetworkOperationException>(() => net.AddRouteAsync(new RouteRequest { Destination = "10.9.0.0", PrefixLength = 24, NextHop = "192.168.1.1" }));
+        await Assert.ThrowsAsync<NetworkOperationException>(() => net.RenewDhcpLeaseAsync(a.InterfaceIndex));
+        await Assert.ThrowsAsync<NetworkOperationException>(() => net.FlushDnsCacheAsync());
+        await Assert.ThrowsAsync<NetworkOperationException>(() => net.RescanHardwareAsync());
+        await Assert.ThrowsAsync<NetworkOperationException>(() => net.CreateVirtualBoxAdapterAsync());
+
+        Assert.Equal(adapters.Count, (await net.GetAdaptersAsync()).Count);   // nothing changed
+    }
+}

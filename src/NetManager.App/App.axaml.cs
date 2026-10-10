@@ -18,7 +18,9 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             // Real Windows backend on Windows, demo data everywhere else (lets the UI be developed on macOS/Linux).
-            INetworkService network = OperatingSystem.IsWindows() ? new WindowsNetworkService() : new MockNetworkService();
+            INetworkService network = OperatingSystem.IsWindows()
+                ? new WindowsNetworkService()
+                : new MockNetworkService(canModify: Environment.GetEnvironmentVariable("NETMANAGER_DEMO_READONLY") != "1");
             var settings = new SettingsStore();
             var saved = settings.Load();
             Loc.SetLanguage(saved.Language ?? Loc.DetectSystemLanguage());
