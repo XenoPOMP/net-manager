@@ -18,7 +18,7 @@ public class ProfileStoreTests
             {
                 Name = "Office",
                 AdapterName = "Ethernet",
-                Ipv4 = new Ipv4Config { Method = Ipv4Method.Manual, Addresses = [new("10.0.0.5", 24)], Gateway = "10.0.0.1" },
+                Ipv4 = new Ipv4Config { Method = Ipv4Method.Manual, Addresses = [new("10.0.0.5", 24)], Gateways = [new("10.0.0.1", 5), new("10.0.0.254")], InterfaceMetric = 20 },
                 Routes = [new ProfileRoute { Destination = "172.16.0.0", PrefixLength = 12, NextHop = "10.0.0.254" }],
             }]);
 

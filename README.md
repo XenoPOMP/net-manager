@@ -5,7 +5,7 @@ A NetworkManager-style network settings app for Windows 10/11, written in C# / .
 | Feature | Status |
 |---|---|
 | List adapters (Ethernet, Wi-Fi, virtual…), state, MAC, speed, MTU, DHCP server | ✅ |
-| IPv4: DHCP or manual — multiple addresses, netmask/prefix, gateway | ✅ |
+| IPv4: DHCP or manual — multiple addresses, netmask/prefix, up to 5 default gateways each with its own (or automatic) metric, interface metric | ✅ |
 | DNS: automatic or manual server list (independent of the address method) | ✅ |
 | Enable / disable adapter, renew DHCP lease, flush DNS cache | ✅ |
 | Routing table: all IPv4 routes, classified Static / Dynamic / System, filter + search | ✅ |
@@ -75,4 +75,6 @@ On first run on a Windows 10 machine (as admin), check in this order — ideally
 5. On a spare/virtual adapter: switch Manual ⇄ Automatic, change DNS, check with `ipconfig /all`.
 6. Maintenance page: with VirtualBox installed, delete one *host-only* adapter → it disappears from Windows' Network Connections;
    *Recreate* brings back a host-only adapter with its old IPv4 settings. Check that no hardware / Hyper-V adapter is ever listed as removable.
-7. If setting a default gateway returns WMI error 68, report it — the code retries with a fixed metric of 1 first.
+7. Add two gateways on a spare adapter (one with *Auto metric*, one with metric 20) and an interface metric; compare with `route print -4`
+   (effective metric = gateway metric + interface metric) and with Windows' own Advanced TCP/IP dialog. Remove all gateways and reboot-check that none return.
+   If setting gateways returns WMI error 68, report it — the code retries automatic ones with a fixed metric of 1.

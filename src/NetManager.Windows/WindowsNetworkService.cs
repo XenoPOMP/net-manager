@@ -51,9 +51,8 @@ public sealed class WindowsNetworkService : INetworkService
                     .Where(a => a.Address.AddressFamily == AddressFamily.InterNetwork)
                     .Select(a => new Ipv4AddressEntry(a.Address.ToString(), a.PrefixLength))
                     .ToList(),
-                Gateway = props.GatewayAddresses
-                    .FirstOrDefault(g => g.Address.AddressFamily == AddressFamily.InterNetwork && !g.Address.Equals(IPAddress.Any))
-                    ?.Address.ToString(),
+                Gateways = ReadGateways(nic.Id, v4.IsDhcpEnabled, props),
+                InterfaceMetric = ReadInterfaceMetric(nic.Id),
                 DnsAutomatic = !HasStaticDns(nic.Id),
                 DnsServers = props.DnsAddresses
                     .Where(d => d.AddressFamily == AddressFamily.InterNetwork)
@@ -212,11 +211,11 @@ public sealed class WindowsNetworkService : INetworkService
                 // EnableStatic replaces every IPv4 address on the adapter and drops any DHCP lease.
                 WmiCheck("EnableStatic", cfg.InvokeMethod("EnableStatic", [ips, masks]));
 
-                if (!string.IsNullOrWhiteSpace(config.Gateway))
-                    SetGateway(cfg, config.Gateway!.Trim());
-                else
-                    DeleteDefaultRoutes(interfaceIndex);
+                if (config.Gateways.Count > 0) SetGateways(cfg, config.Gateways);
+                else ClearGateways(interfaceIndex, cfg);
             }
+
+            SetInterfaceMetric(cfg, config.InterfaceMetric);
 
             // DNS is independent of the address method: DHCP addresses can still use hand-written servers.
             object? dns = config.DnsAutomatic || config.DnsServers.Count == 0
@@ -225,18 +224,70 @@ public sealed class WindowsNetworkService : INetworkService
             WmiCheck("SetDNSServerSearchOrder", cfg.InvokeMethod("SetDNSServerSearchOrder", [dns]));
         }, ct);
 
-    private static void SetGateway(ManagementObject cfg, string gateway)
+    /// <summary>Replaces all default gateways. Metric 0 means "automatic" (the registry's DefaultGatewayMetric uses the same convention).</summary>
+    private static void SetGateways(ManagementObject cfg, IReadOnlyList<GatewayEntry> gateways)
     {
-        // Metric 0 asks for an automatic metric; some builds reject it, so retry with a fixed cost of 1.
-        uint rc = (uint)cfg.InvokeMethod("SetGateways", [new[] { gateway }, new ushort[] { 0 }]);
-        if (rc == 68) rc = (uint)cfg.InvokeMethod("SetGateways", [new[] { gateway }, new ushort[] { 1 }]);
+        string[] addresses = gateways.Select(g => g.Address.Trim()).ToArray();
+        ushort[] metrics = gateways.Select(g => (ushort)(g.Metric ?? 0)).ToArray();
+        uint rc = (uint)cfg.InvokeMethod("SetGateways", [addresses, metrics]);
+        // Some builds reject 0 as invalid input; fall back to a fixed cost of 1 for the "automatic" ones.
+        if (rc == 68 && metrics.Contains((ushort)0))
+            rc = (uint)cfg.InvokeMethod("SetGateways", [addresses, metrics.Select(m => m == 0 ? (ushort)1 : m).ToArray()]);
         WmiCheck("SetGateways", rc);
     }
 
-    private static void DeleteDefaultRoutes(int ifIndex)
+    /// <summary>Removes every default gateway: the live routes and the stored configuration (so they don't return after a reboot).</summary>
+    private static void ClearGateways(int ifIndex, ManagementObject cfg)
     {
         foreach (var r in IpForwardTable.Read().Where(r => r.InterfaceIndex == ifIndex && r.PrefixLength == 0 && r.Destination == "0.0.0.0" && r.NextHop is not null))
             IpForwardTable.Delete(r.InterfaceIndex, r.Destination, r.PrefixLength, r.NextHop);
+
+        if (cfg["SettingID"] is string guid)
+        {
+            using var key = Registry.LocalMachine.OpenSubKey($@"{TcpipInterfaces}\{guid}", writable: true);
+            key?.SetValue("DefaultGateway", Array.Empty<string>(), RegistryValueKind.MultiString);
+            key?.SetValue("DefaultGatewayMetric", Array.Empty<string>(), RegistryValueKind.MultiString);
+        }
+    }
+
+    /// <summary>Null = automatic (0). Not every Windows build implements the method; failing to *reset* to automatic isn't worth an error.</summary>
+    private static void SetInterfaceMetric(ManagementObject cfg, int? metric)
+    {
+        uint rc = (uint)cfg.InvokeMethod("SetIPConnectionMetric", [(uint)(metric ?? 0)]);
+        if (rc == 64 && metric is null) return;
+        WmiCheck("SetIPConnectionMetric", rc);
+    }
+
+    private const string TcpipInterfaces = @"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces";
+
+    /// <summary>
+    /// DHCP: whatever the lease provided (metric automatic). Static: the configured list from the registry, which keeps the
+    /// per-gateway metrics (REG_MULTI_SZ DefaultGateway / DefaultGatewayMetric, "0" = automatic) even while the link is down.
+    /// </summary>
+    private static List<GatewayEntry> ReadGateways(string interfaceGuid, bool dhcp, IPInterfaceProperties props)
+    {
+        if (!dhcp)
+        {
+            using var key = Registry.LocalMachine.OpenSubKey($@"{TcpipInterfaces}\{interfaceGuid}");
+            if (key?.GetValue("DefaultGateway") is string[] gws && gws.Length > 0)
+            {
+                var metrics = key.GetValue("DefaultGatewayMetric") as string[] ?? [];
+                return gws.Where(g => !string.IsNullOrWhiteSpace(g))
+                    .Select((g, i) => new GatewayEntry(g.Trim(),
+                        i < metrics.Length && int.TryParse(metrics[i], out var m) && m > 0 ? m : null))
+                    .ToList();
+            }
+        }
+        return props.GatewayAddresses
+            .Where(g => g.Address.AddressFamily == AddressFamily.InterNetwork && !g.Address.Equals(IPAddress.Any))
+            .Select(g => new GatewayEntry(g.Address.ToString()))
+            .ToList();
+    }
+
+    private static int? ReadInterfaceMetric(string interfaceGuid)
+    {
+        using var key = Registry.LocalMachine.OpenSubKey($@"{TcpipInterfaces}\{interfaceGuid}");
+        return key?.GetValue("InterfaceMetric") is int m && m > 0 ? m : null;
     }
 
     public Task SetAdapterEnabledAsync(string adapterId, bool enabled, CancellationToken ct = default) =>

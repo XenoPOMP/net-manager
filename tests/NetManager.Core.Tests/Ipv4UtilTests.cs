@@ -56,14 +56,14 @@ public class Ipv4UtilTests
         {
             Method = Ipv4Method.Manual,
             Addresses = [new("192.168.1.10", 24)],
-            Gateway = "192.168.1.1",
+            Gateways = [new("192.168.1.1")],
             DnsAutomatic = false,
             DnsServers = ["1.1.1.1", "8.8.8.8"],
         };
         Assert.Empty(Ipv4Util.Validate(ok));
 
         var bad = ok.Clone();
-        bad.Gateway = "10.0.0.1";
+        bad.Gateways = [new("10.0.0.1")];
         bad.DnsServers.Add("nope");
         Assert.Equal(2, Ipv4Util.Validate(bad).Count);
 

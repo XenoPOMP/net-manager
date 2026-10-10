@@ -78,13 +78,19 @@ public static class Ipv4Util
                 uint v = ToUInt(ip);
                 if (v == 0 || v >> 28 >= 0xE) errors.Add(Loc.T("val.notUnicast", a.Address));
             }
-            if (!string.IsNullOrWhiteSpace(c.Gateway))
+            if (c.Gateways.Count > Ipv4Config.MaxGateways) errors.Add(Loc.T("val.tooManyGateways", Ipv4Config.MaxGateways));
+            foreach (var g in c.Gateways)
             {
-                if (!TryParseAddress(c.Gateway, out _)) errors.Add(Loc.T("val.badGateway", c.Gateway));
-                else if (c.Addresses.Count > 0 && !c.Addresses.Any(a => InSameSubnet(a.Address, c.Gateway!, a.PrefixLength)))
-                    errors.Add(Loc.T("val.gatewayOutside"));
+                if (!TryParseAddress(g.Address, out _)) { errors.Add(Loc.T("val.badGateway", g.Address)); continue; }
+                if (c.Addresses.Count > 0 && !c.Addresses.Any(a => InSameSubnet(a.Address, g.Address, a.PrefixLength)))
+                    errors.Add(Loc.T("val.gatewayOutside", g.Address));
+                if (g.Metric is < 1 or > 9999) errors.Add(Loc.T("val.badMetric", g.Address));
             }
+            var dup = c.Gateways.GroupBy(g => g.Address.Trim()).FirstOrDefault(x => x.Count() > 1);
+            if (dup is not null) errors.Add(Loc.T("val.dupGateway", dup.Key));
         }
+        // The interface metric applies whatever the address method is.
+        if (c.InterfaceMetric is < 1 or > 9999) errors.Add(Loc.T("val.badIfMetric"));
         if (!c.DnsAutomatic)
             foreach (var d in c.DnsServers)
                 if (!TryParseAddress(d, out _)) errors.Add(Loc.T("val.badDns", d));

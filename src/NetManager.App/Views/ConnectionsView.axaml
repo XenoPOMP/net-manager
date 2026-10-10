@@ -106,8 +106,33 @@
               <Button Content="{loc:T conn.addAddress}" Command="{Binding AddAddressCommand}" />
 
               <TextBlock Classes="field" Text="{loc:T conn.gateway}" />
-              <TextBox Text="{Binding Gateway}" PlaceholderText="{loc:T conn.gatewayPh}" Width="320" HorizontalAlignment="Left" />
+              <ItemsControl ItemsSource="{Binding Gateways}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:GatewayRow">
+                    <Grid ColumnDefinitions="*,8,Auto,8,100,8,Auto" Margin="0,0,0,6">
+                      <TextBox Grid.Column="0" Text="{Binding Address}" PlaceholderText="{loc:T conn.gatewayPh}" />
+                      <CheckBox Grid.Column="2" Content="{loc:T conn.autoMetric}" IsChecked="{Binding IsAutomatic}" />
+                      <TextBox Grid.Column="4" Text="{Binding MetricText}" PlaceholderText="{loc:T conn.metricPh}"
+                               IsEnabled="{Binding !IsAutomatic}" />
+                      <Button Grid.Column="6" Content="✕" ToolTip.Tip="{loc:T conn.removeGateway}"
+                              x:CompileBindings="False"
+                              Command="{Binding $parent[ItemsControl].DataContext.RemoveGatewayCommand}"
+                              CommandParameter="{Binding}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <Button Content="{loc:T conn.addGateway}" Command="{Binding AddGatewayCommand}" />
             </StackPanel>
+
+            <!-- interface metric applies to DHCP and manual configurations alike -->
+            <TextBlock Classes="field" Margin="0,14,0,3" Text="{loc:T conn.ifMetric}" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <CheckBox Content="{loc:T conn.ifMetricAuto}" IsChecked="{Binding InterfaceMetricAuto}" />
+              <TextBox Text="{Binding InterfaceMetricText}" Width="100" PlaceholderText="{loc:T conn.metricPh}"
+                       IsEnabled="{Binding !InterfaceMetricAuto}" />
+            </StackPanel>
+            <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0" Text="{loc:T conn.metricHint}" />
 
             <TextBlock Classes="h2" Margin="0,18,0,0" Text="{loc:T conn.dns}" />
             <CheckBox Content="{loc:T conn.dnsAuto}" IsChecked="{Binding DnsAutomatic}" />

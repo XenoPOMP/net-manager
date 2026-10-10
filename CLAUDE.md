@@ -52,9 +52,14 @@ and pick the backend at runtime: `OperatingSystem.IsWindows() ? WindowsNetworkSe
 
 ### Feature notes
 
-- **IPv4**: method Automatic/Manual, multiple addresses, gateway, DNS (automatic or list — independent of the address method).
-  Written via WMI `Win32_NetworkAdapterConfiguration` (`EnableStatic`, `EnableDHCP`, `SetGateways`, `SetDNSServerSearchOrder`, `RenewDHCPLease`).
-  Gateway: tries metric 0 (automatic); on WMI code 68 retries with 1. No gateway ⇒ default routes of that interface are deleted via IP Helper.
+- **IPv4**: method Automatic/Manual, multiple addresses, **up to 5 default gateways each with an optional metric** (`GatewayEntry(Address, int? Metric)`,
+  null = automatic, like Windows' "Automatic metric"), **interface metric** (`Ipv4Config.InterfaceMetric`, null = automatic), DNS (automatic or list — independent
+  of the address method). Written via WMI `Win32_NetworkAdapterConfiguration` (`EnableStatic`, `EnableDHCP`, `SetGateways(string[], ushort[])`,
+  `SetIPConnectionMetric`, `SetDNSServerSearchOrder`, `RenewDHCPLease`). Automatic metric = 0 everywhere (WMI, registry); if `SetGateways` answers 68 the
+  automatic ones are retried as 1. No gateways ⇒ `ClearGateways`: live default routes deleted via IP Helper **and** registry `DefaultGateway`/`DefaultGatewayMetric`
+  emptied so they don't return after reboot. Reading: static config comes from registry `Tcpip\Parameters\Interfaces\{GUID}` (`DefaultGateway`,
+  `DefaultGatewayMetric`, `InterfaceMetric` — REG_MULTI_SZ/DWORD, "0"/absent = automatic); DHCP gateways come from `NetworkInterface` (metric automatic).
+  Effective route metric = gateway metric + interface metric; lowest wins. Old JSON with a single `"Gateway"` still loads (`Ipv4Config.LegacyGateway` setter, never written).
   Static-vs-DHCP DNS is detected from registry `Tcpip\Parameters\Interfaces\{GUID}\NameServer`.
 - **Routes**: read with `GetIpForwardTable2`, created/deleted with `CreateIpForwardEntry2`/`DeleteIpForwardEntry2`. `MIB_IPFORWARD_ROW2` is read
   by **raw byte offsets** (documented in `NativeMethods.cs`, row size 104, table header 8). Classification: protocol 2 / origin 1 / loopback ⇒ System;
@@ -128,7 +133,8 @@ Seed `recovery.json` in the temp dir to see the "missing hardware" / "recently r
 ## Unverified on real Windows (check first when the user reports problems)
 
 1. Raw-offset parsing of `MIB_IPFORWARD_ROW2` (garbled route list ⇒ offsets).
-2. `SetGateways` with metric 0 (code 68 ⇒ retried with 1).
+2. `SetGateways` with metric 0 meaning automatic (code 68 ⇒ retried with 1); several gateways in one call; `SetIPConnectionMetric` exists and accepts 0 = automatic;
+   registry `DefaultGateway`/`DefaultGatewayMetric` as the source of configured gateways and being cleared correctly.
 3. Disabled adapters appearing only via WMI; `ConfigManagerErrorCode == 22` as "disabled"; cable-unplugged/Wi-Fi-off must stay "Not connected", not "Disabled".
 4. VirtualBox host-only adapters reporting service `VBoxNetAdp6`/`VBoxNetAdp` and `PhysicalAdapter == false` (otherwise they show as protected).
 5. `pnputil /remove-device`, `/scan-devices` exit codes (0 / 3010 = success), `VBoxManage hostonlyif create`, then re-applying IPv4 to the new adapter.

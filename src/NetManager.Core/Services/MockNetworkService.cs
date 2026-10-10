@@ -26,7 +26,7 @@ public sealed class MockNetworkService : INetworkService
                 SpeedBitsPerSecond = 1_000_000_000, Mtu = 1500, DhcpServer = "192.168.1.1",
                 Ipv4 = new Ipv4Config
                 {
-                    Method = Ipv4Method.Automatic, Addresses = [new("192.168.1.42", 24)], Gateway = "192.168.1.1",
+                    Method = Ipv4Method.Automatic, Addresses = [new("192.168.1.42", 24)], Gateways = [new("192.168.1.1")],
                     DnsAutomatic = true, DnsServers = ["192.168.1.1"],
                 },
             },
@@ -116,7 +116,7 @@ public sealed class MockNetworkService : INetworkService
             {
                 // Pretend DHCP handed out an address.
                 c.Addresses = [new("192.168.1.42", 24)];
-                c.Gateway = "192.168.1.1";
+                c.Gateways = [new("192.168.1.1")];
                 if (c.DnsAutomatic) c.DnsServers = ["192.168.1.1"];
             }
             _adapters[i] = _adapters[i] with { Ipv4 = c };

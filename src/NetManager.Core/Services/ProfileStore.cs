@@ -22,7 +22,7 @@ public sealed class ConnectionProfile
         {
             var parts = new List<string> { Loc.T(Ipv4.Method == Ipv4Method.Automatic ? "profile.dhcp" : "profile.manual") };
             if (Ipv4.Method == Ipv4Method.Manual && Ipv4.Addresses.Count > 0) parts.Add(string.Join(", ", Ipv4.Addresses));
-            if (Ipv4.Method == Ipv4Method.Manual && !string.IsNullOrEmpty(Ipv4.Gateway)) parts.Add(Loc.T("profile.gw", Ipv4.Gateway));
+            if (Ipv4.Method == Ipv4Method.Manual && Ipv4.Gateways.Count > 0) parts.Add(Loc.T("profile.gw", string.Join(", ", Ipv4.Gateways)));
             if (!Ipv4.DnsAutomatic && Ipv4.DnsServers.Count > 0) parts.Add(Loc.T("profile.dns", string.Join(", ", Ipv4.DnsServers)));
             if (Routes.Count > 0) parts.Add(Loc.T("profile.routes", Routes.Count));
             return string.Join(" · ", parts);

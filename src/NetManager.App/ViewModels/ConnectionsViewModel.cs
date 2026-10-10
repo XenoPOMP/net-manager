@@ -15,6 +15,7 @@ public partial class ConnectionsViewModel : ObservableObject
 
     public ObservableCollection<AdapterInfo> Adapters { get; } = [];
     public ObservableCollection<AddressRow> Addresses { get; } = [];
+    public ObservableCollection<GatewayRow> Gateways { get; } = [];
 
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasSelection), nameof(SelectedIsDisabled), nameof(SelectedIsEnabled), nameof(CurrentLeaseText))]
     [NotifyCanExecuteChangedFor(nameof(ApplyCommand), nameof(RevertCommand), nameof(ToggleEnabledCommand), nameof(RenewLeaseCommand), nameof(SaveProfileCommand))]
@@ -22,7 +23,8 @@ public partial class ConnectionsViewModel : ObservableObject
 
     // ---- editor state ("IPv4" tab)
     [ObservableProperty, NotifyPropertyChangedFor(nameof(IsAutomatic))] private bool _isManual;
-    [ObservableProperty] private string _gateway = "";
+    [ObservableProperty] private bool _interfaceMetricAuto = true;
+    [ObservableProperty] private string _interfaceMetricText = "";
     [ObservableProperty] private bool _dnsAutomatic = true;
     [ObservableProperty] private string _dnsText = "";
     [ObservableProperty] private string _profileName = "";
@@ -58,13 +60,15 @@ public partial class ConnectionsViewModel : ObservableObject
             foreach (var e in a.Ipv4.Addresses.Where(x => !x.Address.StartsWith("169.254.")))
                 Addresses.Add(new AddressRow(e.Address, e.Mask));
             if (Addresses.Count == 0) Addresses.Add(new AddressRow());
-            if (string.IsNullOrEmpty(Gateway)) Gateway = a.Ipv4.Gateway ?? "";
+            if (Gateways.Count == 0)
+                foreach (var g in a.Ipv4.Gateways) Gateways.Add(new GatewayRow(g.Address, g.Metric));
         }
     }
 
     private void LoadEditor(AdapterInfo? a)
     {
         Addresses.Clear();
+        Gateways.Clear();
         if (a is null) return;
         var c = a.Ipv4;
         _loading = true;
@@ -73,7 +77,10 @@ public partial class ConnectionsViewModel : ObservableObject
             IsManual = c.Method == Ipv4Method.Manual;
             if (IsManual)
                 foreach (var e in c.Addresses) Addresses.Add(new AddressRow(e.Address, e.Mask));
-            Gateway = IsManual ? c.Gateway ?? "" : "";
+            if (IsManual)
+                foreach (var g in c.Gateways) Gateways.Add(new GatewayRow(g.Address, g.Metric));
+            InterfaceMetricAuto = c.InterfaceMetric is null;
+            InterfaceMetricText = c.InterfaceMetric?.ToString() ?? "";
             DnsAutomatic = c.DnsAutomatic;
             DnsText = string.Join(Environment.NewLine, c.DnsServers);
             ProfileName = a.Name;
@@ -100,7 +107,6 @@ public partial class ConnectionsViewModel : ObservableObject
         var cfg = new Ipv4Config
         {
             Method = IsManual ? Ipv4Method.Manual : Ipv4Method.Automatic,
-            Gateway = IsManual && !string.IsNullOrWhiteSpace(Gateway) ? Gateway.Trim() : null,
             DnsAutomatic = DnsAutomatic,
             DnsServers = DnsText.Split(['\n', '\r', ',', ';', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
         };
@@ -115,10 +121,27 @@ public partial class ConnectionsViewModel : ObservableObject
                 }
                 cfg.Addresses.Add(new Ipv4AddressEntry(row.Address.Trim(), prefix));
             }
+            foreach (var row in Gateways.Where(r => !string.IsNullOrWhiteSpace(r.Address)))
+            {
+                if (!TryParseMetric(row.IsAutomatic, row.MetricText, out var metric)) { _shell.Error(Loc.T("val.badMetric", row.Address.Trim())); return null; }
+                cfg.Gateways.Add(new GatewayEntry(row.Address.Trim(), metric));
+            }
         }
+        if (!TryParseMetric(InterfaceMetricAuto, InterfaceMetricText, out var ifMetric)) { _shell.Error(Loc.T("val.badIfMetric")); return null; }
+        cfg.InterfaceMetric = ifMetric;
         var problems = Ipv4Util.Validate(cfg);
         if (problems.Count > 0) { _shell.Error(problems[0]); return null; }
         return cfg;
+    }
+
+    /// <summary>Automatic → null; otherwise a whole number 1–9999.</summary>
+    private static bool TryParseMetric(bool automatic, string text, out int? metric)
+    {
+        metric = null;
+        if (automatic) return true;
+        if (!int.TryParse(text.Trim(), out var m) || m is < 1 or > 9999) return false;
+        metric = m;
+        return true;
     }
 
     private bool HasAdapter => Selected is not null;
@@ -170,6 +193,15 @@ public partial class ConnectionsViewModel : ObservableObject
 
     [RelayCommand]
     private void AddAddress() => Addresses.Add(new AddressRow());
+
+    [RelayCommand]
+    private void AddGateway() => Gateways.Add(new GatewayRow());
+
+    [RelayCommand]
+    private void RemoveGateway(GatewayRow? row)
+    {
+        if (row is not null) Gateways.Remove(row);
+    }
 
     [RelayCommand]
     private void RemoveAddress(AddressRow? row)
