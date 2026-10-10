@@ -76,6 +76,18 @@ switching to it only means dropping the reset.
 **Stale-exe check:** the user runs the exe on a Windows VM and copies each new `publish/<rid>/NetManager.exe` there by hand. When a fix "persisted" or a bug is reported, first compare the status-bar
 version/build with the one you just published. This already happened once: a Profiles error that the new build could not produce was still showing.
 
+## Releases
+
+`tools/release.sh` (Zed task **Release (interactive)**) = publish + notes + tag + GitHub release, in one go:
+1. `./publish-win.sh all` (consumes a build number), then checks the three exes exist.
+2. Notes menu (arrow keys / `j k` / digits, plain bash — no gum/fzf): **Generate with Claude** (`claude -p --tools ""` over `git log` + diffstat since the previous tag), **placeholder** (`Generated release for version vX.Y.Z`), or **write in `$VISUAL`/`$EDITOR`**; then use / edit / start over. Saved to `publish/RELEASE_NOTES.md` (gitignored).
+3. Commits `build-number.txt` ("Update build-number.txt", asks first) so the tag contains the build number, then deletes any existing local tag, remote tag **and GitHub release** `v<Version>` and re-creates an annotated tag on HEAD. Everything destructive is listed in one summary and confirmed once.
+4. `gh release create --verify-tag`, assets `NetManager_x64.exe`, `NetManager_x86.exe`, `NetManager_ARM64.exe`, title `NetManager vX (build N)`, `--prerelease` when the version has a `-label`.
+Flags: `--notes claude|placeholder|<file>`, `--skip-publish` (reuse `publish/<rid>/`, no new build number), `--yes` (no prompts), `--dry-run` (mutating commands are printed, not run).
+Preflight (gh logged in, remote exists, GitHub repo resolvable) runs before the build. Needs a real terminal (Zed tasks provide one, hence `use_new_terminal: true`).
+**When testing this script, only ever use `--dry-run`** (or a throwaway repo with a stubbed `gh`): `--yes` against the real repo really retags and republishes the release.
+If `gh release create` fails after the tag was pushed, retry with `tools/release.sh --skip-publish --notes publish/RELEASE_NOTES.md`.
+
 ## Layout
 
 ```
@@ -86,6 +98,7 @@ src/NetManager.Core              platform-neutral: models, validation, policies,
 src/NetManager.Windows           WindowsNetworkService: IP Helper (iphlpapi) + WMI + registry + pnputil/VBoxManage
 src/NetManager.App               Avalonia UI (Views/*.axaml, ViewModels/*)
 tools/bump-version.sh            sets <Version> (SemVer incl. pre-releases) and resets build-number.txt — see Versioning
+tools/release.sh                 publish all + release notes + (re)tag + GitHub release with the exes — see Releases
 tools/IconRender + tools/make-icon.sh   regenerate Assets/icon.png and Assets/app.ico from the vector artwork (Assets/icon.svg); not part of the solution
 tests/NetManager.Core.Tests      xunit tests for Core (IPv4 maths, validation, stores, localization, removal policy, recovery)
 ```
