@@ -1,3 +1,5 @@
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NetManager.Core.Localization;
@@ -30,6 +32,7 @@ public partial class MainViewModel : ObservableObject
     public string Backend => Network.BackendName;
     public string LanguageLabel => Loc.T("nav.language");
     public string AdminBanner => Loc.T("banner.admin");
+    public string AdminButton => Loc.T("banner.restartAdmin");
     public bool ShowAdminWarning => !Network.CanModify;
     public MaintenanceViewModel Maintenance { get; }
     public bool ShowMissingBanner => Maintenance.HasMissing;
@@ -93,9 +96,22 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(Backend));
         OnPropertyChanged(nameof(LanguageLabel));
         OnPropertyChanged(nameof(AdminBanner));
+        OnPropertyChanged(nameof(AdminButton));
         OnPropertyChanged(nameof(MissingBannerText));
         OnPropertyChanged(nameof(MissingBannerButton));
         Shell.Info(Loc.T("status.ready"));
+    }
+
+    /// <summary>Starts an elevated copy (UAC prompt) and closes this one; if the prompt is declined nothing changes.</summary>
+    [RelayCommand]
+    private void RestartElevated()
+    {
+        if (!Elevation.TryRelaunch(Environment.GetCommandLineArgs().Skip(1), markAttempted: false))
+        {
+            Shell.Error(Loc.T("err.elevationDeclined"));
+            return;
+        }
+        (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
     }
 
     [RelayCommand]

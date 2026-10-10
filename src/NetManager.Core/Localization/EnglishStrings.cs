@@ -260,5 +260,9 @@ public static class EnglishStrings
         ["err.pnputilMissing"] = "pnputil is not available. Removing adapters needs Windows 10 version 2004 or later.",
         ["err.vboxMissing"] = "VirtualBox (VBoxManage.exe) was not found.",
         ["err.noPnpId"] = "This adapter has no device id, so it can't be removed.",
+        ["banner.restartAdmin"] = "Restart as administrator",
+        ["err.elevationDeclined"] = "Administrator rights were not granted. NetManager keeps running in read-only mode.",
+        ["wmi.69"] = "more than five gateways specified",
+        ["wmi.90"] = "parameter out of bounds (a metric must be between 1 and 9999)",
     };
 }

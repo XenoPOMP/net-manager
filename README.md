@@ -53,7 +53,7 @@ XAML uses `{loc:T some.key}`, code uses `Loc.T("some.key", args)`. To add a lang
   `SetDNSServerSearchOrder`, `RenewDHCPLease`).
 - **Routes** — IP Helper `GetIpForwardTable2` / `CreateIpForwardEntry2` / `DeleteIpForwardEntry2`. Persistent routes are
   written to `HKLM\...\Tcpip\Parameters\PersistentRoutes`, the same place `route -p add` uses.
-- The exe manifest requests **administrator** rights (UAC prompt on start); without them the UI shows a warning banner.
+- The exe manifest requests **administrator** rights (UAC prompt on start). If the app is started without them (e.g. `dotnet run`) it relaunches itself elevated once; if UAC is declined it stays read-only with a banner and a **Restart as administrator** button. `--no-elevate` disables the relaunch for debugging.
 
 ## Develop
 

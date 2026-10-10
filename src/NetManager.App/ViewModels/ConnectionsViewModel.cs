@@ -43,10 +43,12 @@ public partial class ConnectionsViewModel : ObservableObject
         _shell = shell;
     }
 
+    private bool _keepEditor;
+
     partial void OnSelectedChanged(AdapterInfo? value)
     {
         OnPropertyChanged(nameof(ToggleEnabledText));
-        LoadEditor(value);
+        if (!_keepEditor) LoadEditor(value);
     }
 
     private bool _loading;
@@ -101,6 +103,24 @@ public partial class ConnectionsViewModel : ObservableObject
         Selected = Adapters.FirstOrDefault(a => a.Id == keep) ?? Adapters.FirstOrDefault();
     }
 
+    private async Task RefreshQuietlyAsync()
+    {
+        try
+        {
+            var list = await _network.GetAdaptersAsync();
+            string? keep = Selected?.Id;
+            _keepEditor = true;
+            try
+            {
+                Adapters.Clear();
+                foreach (var a in list) Adapters.Add(a);
+                Selected = Adapters.FirstOrDefault(a => a.Id == keep) ?? Adapters.FirstOrDefault();
+            }
+            finally { _keepEditor = false; }
+        }
+        catch (Exception) { /* the original error is what matters */ }
+    }
+
     /// <summary>Builds a config from the editor fields, or reports why it can't.</summary>
     private Ipv4Config? BuildConfig()
     {
@@ -151,7 +171,13 @@ public partial class ConnectionsViewModel : ObservableObject
     {
         if (Selected is not { } a || BuildConfig() is not { } cfg) return;
         if (await _shell.RunAsync(Loc.T("conn.applying", a.Name), () => _network.ApplyIpv4Async(a.InterfaceIndex, cfg), Loc.T("conn.applied", a.Name)))
+        {
             await RefreshAsync();
+            return;
+        }
+        // Applying is several steps (address, gateways, metric, DNS); an early one may have taken effect before a later one failed.
+        // Show the real state in the list, but keep what the user typed and the error message.
+        await RefreshQuietlyAsync();
     }
 
     [RelayCommand(CanExecute = nameof(HasAdapter))]

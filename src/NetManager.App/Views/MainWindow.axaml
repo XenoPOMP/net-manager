@@ -10,7 +10,10 @@
 
     <!-- Texts that stay on screen across a language change are bound to view-model properties. -->
     <Border Grid.Row="0" Background="#B7791F" Padding="14,8" IsVisible="{Binding ShowAdminWarning}">
-      <TextBlock Foreground="White" TextWrapping="Wrap" Text="{Binding AdminBanner}" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Foreground="White" TextWrapping="Wrap" VerticalAlignment="Center" Text="{Binding AdminBanner}" />
+        <Button Grid.Column="1" Margin="12,0,0,0" Content="{Binding AdminButton}" Command="{Binding RestartElevatedCommand}" />
+      </Grid>
     </Border>
 
     <!-- Hardware adapters that used to be here are gone: point the user at the restore page. -->

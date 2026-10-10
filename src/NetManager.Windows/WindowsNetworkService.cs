@@ -224,16 +224,28 @@ public sealed class WindowsNetworkService : INetworkService
             WmiCheck("SetDNSServerSearchOrder", cfg.InvokeMethod("SetDNSServerSearchOrder", [dns]));
         }, ct);
 
-    /// <summary>Replaces all default gateways. Metric 0 means "automatic" (the registry's DefaultGatewayMetric uses the same convention).</summary>
+    /// <summary>
+    /// Replaces all default gateways. WMI only accepts explicit metrics of 1–9999: sending 0 for "automatic" fails with
+    /// code 90 ("parameter out of bounds", seen on Windows 11). Automatic is expressed by leaving the metric parameter out,
+    /// which only works when no gateway has an explicit metric; in a mixed list the automatic ones are stored as metric 1.
+    /// </summary>
     private static void SetGateways(ManagementObject cfg, IReadOnlyList<GatewayEntry> gateways)
     {
         string[] addresses = gateways.Select(g => g.Address.Trim()).ToArray();
-        ushort[] metrics = gateways.Select(g => (ushort)(g.Metric ?? 0)).ToArray();
-        uint rc = (uint)cfg.InvokeMethod("SetGateways", [addresses, metrics]);
-        // Some builds reject 0 as invalid input; fall back to a fixed cost of 1 for the "automatic" ones.
-        if (rc == 68 && metrics.Contains((ushort)0))
-            rc = (uint)cfg.InvokeMethod("SetGateways", [addresses, metrics.Select(m => m == 0 ? (ushort)1 : m).ToArray()]);
-        WmiCheck("SetGateways", rc);
+
+        if (gateways.All(g => g.Metric is null))
+        {
+            using var inParams = cfg.GetMethodParameters("SetGateways");
+            inParams["DefaultIPGateway"] = addresses;
+            using var result = cfg.InvokeMethod("SetGateways", inParams, null);
+            uint rc = Convert.ToUInt32(result["ReturnValue"]);
+            if (rc is 0 or 1) return;
+            if (rc is not (68 or 90)) { WmiCheck("SetGateways", rc); return; }
+            // this build wants a metric after all: fall through and store 1
+        }
+
+        ushort[] metrics = gateways.Select(g => (ushort)(g.Metric ?? 1)).ToArray();
+        WmiCheck("SetGateways", cfg.InvokeMethod("SetGateways", [addresses, metrics]));
     }
 
     /// <summary>Removes every default gateway: the live routes and the stored configuration (so they don't return after a reboot).</summary>
@@ -250,11 +262,24 @@ public sealed class WindowsNetworkService : INetworkService
         }
     }
 
-    /// <summary>Null = automatic (0). Not every Windows build implements the method; failing to *reset* to automatic isn't worth an error.</summary>
+    /// <summary>
+    /// Null = automatic. Only touches the system when the value actually changes, so the common "leave it automatic" case never
+    /// calls the method. Like gateway metrics, WMI may refuse 0 for automatic (codes 64/68/90); then the stored value is reset in the registry,
+    /// which Windows picks up when the interface is next initialised.
+    /// </summary>
     private static void SetInterfaceMetric(ManagementObject cfg, int? metric)
     {
+        string? guid = cfg["SettingID"] as string;
+        if (guid is not null && ReadInterfaceMetric(guid) == metric) return;
+
         uint rc = (uint)cfg.InvokeMethod("SetIPConnectionMetric", [(uint)(metric ?? 0)]);
-        if (rc == 64 && metric is null) return;
+        if (rc is 0 or 1) return;
+        if (metric is null && guid is not null && rc is 64 or 68 or 90)
+        {
+            using var key = Registry.LocalMachine.OpenSubKey($@"{TcpipInterfaces}\{guid}", writable: true);
+            key?.SetValue("InterfaceMetric", 0, RegistryValueKind.DWord);
+            return;
+        }
         WmiCheck("SetIPConnectionMetric", rc);
     }
 

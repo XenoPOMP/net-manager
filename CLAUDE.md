@@ -55,8 +55,7 @@ and pick the backend at runtime: `OperatingSystem.IsWindows() ? WindowsNetworkSe
 - **IPv4**: method Automatic/Manual, multiple addresses, **up to 5 default gateways each with an optional metric** (`GatewayEntry(Address, int? Metric)`,
   null = automatic, like Windows' "Automatic metric"), **interface metric** (`Ipv4Config.InterfaceMetric`, null = automatic), DNS (automatic or list — independent
   of the address method). Written via WMI `Win32_NetworkAdapterConfiguration` (`EnableStatic`, `EnableDHCP`, `SetGateways(string[], ushort[])`,
-  `SetIPConnectionMetric`, `SetDNSServerSearchOrder`, `RenewDHCPLease`). Automatic metric = 0 everywhere (WMI, registry); if `SetGateways` answers 68 the
-  automatic ones are retried as 1. No gateways ⇒ `ClearGateways`: live default routes deleted via IP Helper **and** registry `DefaultGateway`/`DefaultGatewayMetric`
+  `SetIPConnectionMetric`, `SetDNSServerSearchOrder`, `RenewDHCPLease`). Automatic metric = 0 in the registry, but WMI `SetGateways` refuses 0 (code 90): automatic is expressed by omitting the metric parameter, falling back to 1. No gateways ⇒ `ClearGateways`: live default routes deleted via IP Helper **and** registry `DefaultGateway`/`DefaultGatewayMetric`
   emptied so they don't return after reboot. Reading: static config comes from registry `Tcpip\Parameters\Interfaces\{GUID}` (`DefaultGateway`,
   `DefaultGatewayMetric`, `InterfaceMetric` — REG_MULTI_SZ/DWORD, "0"/absent = automatic); DHCP gateways come from `NetworkInterface` (metric automatic).
   Effective route metric = gateway metric + interface metric; lowest wins. Old JSON with a single `"Gateway"` still loads (`Ipv4Config.LegacyGateway` setter, never written).
@@ -78,7 +77,12 @@ and pick the backend at runtime: `OperatingSystem.IsWindows() ? WindowsNetworkSe
 - **Restore**: `RecoveryLogic` remembers hardware adapters (matched by PnP id or MAC), `FindMissing` drives the orange banner; "Rescan hardware" =
   `pnputil /scan-devices`; "Recreate" = `VBoxManage hostonlyif create` then re-apply the journalled IPv4 config to the adapter that appeared.
   `ToolRunner` runs tools with an argument list (no shell) and decodes output in the OEM code page (cp866 on Russian Windows).
-- **Admin rights**: `app.manifest` requests `requireAdministrator`; `CanModify` is false (warning banner shown) when not elevated.
+- **Admin rights** (three layers): (1) `app.manifest` requests `requireAdministrator` (verified present in the published exe; UAC prompt on a normal launch);
+  (2) `Program.Main` → `Elevation.TryRelaunch` relaunches elevated once via `ShellExecute "runas"` when started un-elevated (`dotnet run`, IDE, non-elevated parent);
+  the relaunched copy gets `--elevation-attempted` so a failed elevation can't loop, and `--no-elevate` skips the whole thing for debugging; command line is built with
+  the unit-tested `CommandLine.Join` (Core); (3) if still not elevated (UAC declined) the app runs read-only: `CanModify` is false, an orange banner with a
+  **Restart as administrator** button (`MainViewModel.RestartElevatedCommand`) is shown, and the backend's `RequireAdmin` rejects every write anyway.
+  Note: a non-elevated parent that launches the exe with plain CreateProcess gets Windows error 740 before `Main` runs — nothing the app can do; run the IDE as admin.
 
 ## Localization (EN/RU)
 
@@ -143,8 +147,10 @@ Seed `recovery.json` in the temp dir to see the "missing hardware" / "recently r
 ## Unverified on real Windows (check first when the user reports problems)
 
 1. Raw-offset parsing of `MIB_IPFORWARD_ROW2` (garbled route list ⇒ offsets).
-2. `SetGateways` with metric 0 meaning automatic (code 68 ⇒ retried with 1); several gateways in one call; `SetIPConnectionMetric` exists and accepts 0 = automatic;
-   registry `DefaultGateway`/`DefaultGatewayMetric` as the source of configured gateways and being cleared correctly.
+2. Gateways: **WMI rejects metric 0 with code 90** (confirmed on Win 11) → "automatic" is sent by omitting the metric parameter (only possible when no gateway has an explicit metric; mixed
+   lists store the automatic ones as 1 — UI then reads them back as explicit). Still unverified: that omitting really leaves it automatic; `SetIPConnectionMetric` (only called when the value changed;
+   registry fallback for automatic); registry `DefaultGateway`/`DefaultGatewayMetric` as the source of configured gateways and being cleared correctly.
+   `ApplyIpv4Async` is **not atomic** (address → gateways → interface metric → DNS): `ConnectionsViewModel.ApplyAsync` refreshes the list after a failure (`RefreshQuietlyAsync`) but keeps the editor and the error.
 3. Disabled adapters appearing only via WMI; `ConfigManagerErrorCode == 22` as "disabled"; cable-unplugged/Wi-Fi-off must stay "Not connected", not "Disabled".
 4. VirtualBox host-only adapters reporting service `VBoxNetAdp6`/`VBoxNetAdp` and `PhysicalAdapter == false` (otherwise they show as protected).
 5. `pnputil /remove-device`, `/scan-devices` exit codes (0 / 3010 = success), `VBoxManage hostonlyif create`, then re-applying IPv4 to the new adapter.
