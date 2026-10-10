@@ -86,3 +86,5 @@ fabric.properties
 # CC
 .idea/**/claudeCodeTabState.xml
 
+# MacOS
+.DS_Store
