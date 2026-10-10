@@ -27,19 +27,51 @@ Zed users: the same commands are ready-made tasks in `.zed/tasks.json` (incl. **
 Always finish a change with `dotnet build NetManager.slnx` (expect 0 errors, 0 warnings) and `dotnet test`.
 Because output is Russian, grep for `error|Ошибок|Предупреждений` and `Пройден|Неудач`, or just read the tail.
 
-**Stale-exe check:** the status bar (bottom right) shows `v0.1.0 · build N`. `publish-win.sh` bumps `build-number.txt` once per run (all RIDs of an `all` run share the number) and passes
-`-p:BuildNumber=N`, which the csproj embeds as assembly metadata (`BuildInfo.Text`); IDE/`dotnet run` builds show `dev build`. When the user says a fix "persisted", first compare that number
-with the one just published: the user runs the exe on a Windows VM and has to copy each new `publish/<rid>/NetManager.exe` there by hand (this already happened once: a Profiles error the new
-build could not produce was still showing). **Always tell the user the build number after publishing** (`cat build-number.txt`).
+**Which exe is running?** The status bar shows `v<version> · build <N>` — see **Versioning** below. After every publish, tell the user the version and build number (`cat build-number.txt`).
+
+## Versioning
+
+Two independent numbers, always shown together in the status bar (bottom right) as **`v0.1.0 · build 5`**:
+
+| | Version | Build number |
+|---|---|---|
+| Form | SemVer `MAJOR.MINOR.PATCH` (now `0.1.0`) | one integer |
+| Source of truth | `<Version>` in `Directory.Build.props` — the only place; all three assemblies use it | `build-number.txt` (tracked in git; holds the **last used** number) |
+| Changes when | you bump it by hand (checklist below) | automatically **+1 on every `./publish-win.sh` run** (an `all` run gives all three RIDs the same number) |
+| Where it shows | status bar `v…`; the exe's Windows *Details* tab: File version `0.1.0.0`, Product version `0.1.0+<git commit sha>` | status bar `build N`; assembly metadata `BuildNumber` |
+
+How the build number gets into the exe: the script reads `build-number.txt`, adds 1, writes it back, and passes `-p:BuildNumber=N`; `NetManager.App.csproj` emits
+`AssemblyMetadata("BuildNumber", N)` only when that property is set; `BuildInfo.Text` reads it. Builds from the IDE or `dotnet run` have no number and show **`dev build`** — so a
+`dev build` in a screenshot means the exe did not come from `publish-win.sh`. Facts verified on a published exe: the exe's own version resource has FileVersion `0.1.0.0` (the 4th part is
+**not** the build number) and ProductVersion `0.1.0+<sha>`; the sha is HEAD at build time (added by the SDK), so it does not reflect uncommitted changes — don't use it to prove which sources an exe has.
+
+**Rules**
+- The script increments *before* publishing, so the file holds the last number used: write **`0`** to make the next publish **build 1** (writing `1` would give build 2).
+- Every publish consumes a number — failed, partial and trial publishes too. Gaps are fine; the number only has to be unique per version.
+- Don't edit `build-number.txt` by hand except when bumping the version, and never lower it without bumping `<Version>`: two different exes would then show the same `vX · build N`.
+- Commit `build-number.txt` whenever you commit after publishing, so a fresh clone keeps counting instead of repeating numbers.
+
+**Bumping the version** (do this for a release or a notable milestone; SemVer, still `0.x` while roadmap features are missing — new feature → MINOR `0.1.0 → 0.2.0`, fixes only → PATCH `0.1.0 → 0.1.1`, `1.0.0` when it is considered stable):
+1. Edit `<Version>` in `Directory.Build.props`.
+2. Set `build-number.txt` to `0`, so the new version starts at build 1 (`(version, build)` stays unique and readable: `v0.2.0 · build 3` = the third publish of 0.2.0).
+3. `dotnet build NetManager.slnx` and `dotnet test` (0 errors / 0 warnings, all tests pass).
+4. `./publish-win.sh all` → the status bar must read `v<new version> · build 1`.
+5. Commit `Directory.Build.props` + `build-number.txt` (and optionally `git tag v<new version>`).
+Choice made: the counter restarts per version. The alternative — never resetting, so build numbers grow across versions — is also unique; switching to it only means skipping step 2.
+
+**Stale-exe check:** the user runs the exe on a Windows VM and copies each new `publish/<rid>/NetManager.exe` there by hand. When a fix "persisted" or a bug is reported, first compare the status-bar
+version/build with the one you just published. This already happened once: a Profiles error that the new build could not produce was still showing.
 
 ## Layout
 
 ```
 NetManager.slnx                  solution (new .slnx format)
-Directory.Build.props            net10.0, nullable, implicit usings, ProduceReferenceAssembly=false (see Rider gotcha)
+Directory.Build.props            net10.0, nullable, implicit usings, <Version> (see Versioning), ProduceReferenceAssembly=false (see Rider gotcha)
+build-number.txt                 last build number handed out by publish-win.sh (see Versioning)
 src/NetManager.Core              platform-neutral: models, validation, policies, stores, Loc, INetworkService, MockNetworkService
 src/NetManager.Windows           WindowsNetworkService: IP Helper (iphlpapi) + WMI + registry + pnputil/VBoxManage
 src/NetManager.App               Avalonia UI (Views/*.axaml, ViewModels/*)
+tools/IconRender + tools/make-icon.sh   regenerate Assets/icon.png and Assets/app.ico from the vector artwork (Assets/icon.svg); not part of the solution
 tests/NetManager.Core.Tests      xunit tests for Core (IPv4 maths, validation, stores, localization, removal policy, recovery)
 ```
 
@@ -151,6 +183,12 @@ and pick the backend at runtime: `OperatingSystem.IsWindows() ? WindowsNetworkSe
 - Theme brushes: `CardBackgroundFillColorDefaultBrush` etc. don't exist in this Fluent theme → custom brushes `NavBackground/CardBackground/CardBorder` in `App.axaml`.
 - Glyphs: avoid emoji for icons (`🖧` rendered as a box); geometric/symbol characters (`▣ ⇄ ★ ⚒ ⚙`) work on the Mac renderer — not yet seen on Windows (Segoe UI Symbol should have them).
 - Avalonia has no message box: confirmations are inline panels (see `MaintenanceView`).
+
+## App icon
+
+Artwork: `src/NetManager.App/Assets/icon.svg` (gradient rounded square + monitor/terminal glyph). The exe icon is `<ApplicationIcon>Assets\app.ico</ApplicationIcon>` (verified present in the cross-published
+win-x64/x86/arm64 exes: 9 RT_ICON + RT_GROUP_ICON next to the admin manifest); the window/taskbar icon is `Window Icon="/Assets/icon.png"` (`AvaloniaResource`). Don't convert the SVG with ImageMagick's own
+renderer (drops the gradient) or Quick Look (white background): use `tools/make-icon.sh`, which draws the vector with Avalonia/Skia (transparent corners, each size rendered from the vector).
 
 ## Rider gotchas (the user builds/runs in Rider)
 
