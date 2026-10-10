@@ -113,6 +113,16 @@ Rider's "ReSharper Build" ("Build with surface heuristics" in its log) runs a **
    Fix on the user's side: Settings → Build, Execution, Deployment → Toolset and Build → turn off **Use ReSharper Build**; or run `dotnet run --project src/NetManager.App`.
 Also: don't run `dotnet build/test` while Rider is building — overlapping builds race on `obj/` and can delete outputs.
 
+## Windows runtime gotchas (found on the first real run, Win 11 ARM64 VM)
+
+- **`BuiltInComInteropSupport` must stay `true`** in `NetManager.App.csproj`. The Avalonia template sets it to `false`, which writes the runtimeconfig switch
+  `System.Runtime.InteropServices.BuiltInComInterop.IsSupported=false`; `System.Management` (WMI) is COM-based, so every WMI call then threw
+  `TypeInitializationException: The type initializer for 'System.Management.ManagementPath' threw an exception` with the real cause only in the inner exception:
+  "Built-in COM has been disabled via a feature switch". (Not a single-file problem — an earlier guess of `IncludeAllContentForSelfExtract` was wrong and was reverted.)
+- `AppShell.RunAsync`'s catch-all shows the *whole* exception chain (`DeepMessage`, joined with " → "), not just `ex.Message` — that is what exposed the cause above.
+  Don't shorten it back to `ex.Message`.
+- Check the published `NetManager.runtimeconfig.json` / bundled config for unexpected feature switches when something works in `dotnet run` but not on Windows.
+
 ## Verifying UI without a screen (works on this Mac)
 
 `screencapture` is not permitted, so UI is checked headlessly with Avalonia.Headless + Skia in a **throwaway project outside the repo** (scratchpad `shot/`):

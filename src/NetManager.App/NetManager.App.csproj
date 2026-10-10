@@ -6,7 +6,9 @@
     <RootNamespace>NetManager.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
+    <!-- System.Management (WMI) is COM-based. The Avalonia template sets this to false, which makes every WMI call throw
+         "Built-in COM has been disabled via a feature switch". Must stay true. -->
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
   </PropertyGroup>
 
   <ItemGroup>

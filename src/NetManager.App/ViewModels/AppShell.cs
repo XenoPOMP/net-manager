@@ -27,8 +27,20 @@ public partial class AppShell : ObservableObject
         }
         catch (NetworkOperationException ex) { Error(ex.Message); }
         catch (OperationCanceledException) { Info(Loc.T("status.cancelled")); }
-        catch (Exception ex) { Error(Loc.T("status.failed", description, ex.Message)); }
+        catch (Exception ex) { Error(Loc.T("status.failed", description, DeepMessage(ex))); }
         finally { IsBusy = false; }
         return false;
+    }
+
+    /// <summary>
+    /// Unexpected exceptions (anything not already turned into a readable <see cref="NetworkOperationException"/>) are bugs or
+    /// environment problems, so show the whole chain — "X threw an exception" alone (e.g. TypeInitializationException) hides the
+    /// actual cause and is useless for the user to report.
+    /// </summary>
+    private static string DeepMessage(Exception ex)
+    {
+        var parts = new List<string>();
+        for (var e = ex; e is not null; e = e.InnerException) parts.Add(e.Message);
+        return string.Join(" → ", parts);
     }
 }
