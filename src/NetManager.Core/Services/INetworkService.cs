@@ -13,7 +13,7 @@ public interface INetworkService
 
     Task<IReadOnlyList<AdapterInfo>> GetAdaptersAsync(CancellationToken ct = default);
     Task ApplyIpv4Async(int interfaceIndex, Ipv4Config config, CancellationToken ct = default);
-    Task SetAdapterEnabledAsync(int interfaceIndex, bool enabled, CancellationToken ct = default);
+    Task SetAdapterEnabledAsync(string adapterId, bool enabled, CancellationToken ct = default);
     Task RenewDhcpLeaseAsync(int interfaceIndex, CancellationToken ct = default);
     Task FlushDnsCacheAsync(CancellationToken ct = default);
 

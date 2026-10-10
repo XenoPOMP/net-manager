@@ -16,14 +16,21 @@
       <ListBox ItemsSource="{Binding Adapters}" SelectedItem="{Binding Selected}">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="m:AdapterInfo">
-            <Grid ColumnDefinitions="Auto,*" Margin="2,6">
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="2,6" Classes="row" Classes.isoff="{Binding IsDisabled}">
               <Ellipse Classes="dot" Classes.on="{Binding IsConnected}" Classes.off="{Binding IsDisabled}"
                        VerticalAlignment="Top" Margin="0,5,12,0" />
               <StackPanel Grid.Column="1" Spacing="2">
                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding PrimaryAddress}" />
+                <TextBlock Text="{Binding RowStatus}" />
                 <TextBlock Classes="muted" FontSize="12" Text="{Binding Description}" TextTrimming="CharacterEllipsis" />
               </StackPanel>
+              <!-- Like the Disable/Enable action in Windows' Network Connections window, but one click away on every row. -->
+              <ToggleSwitch Grid.Column="2" OnContent="" OffContent="" VerticalAlignment="Center" Margin="8,0,0,0"
+                            IsChecked="{Binding IsEnabled, Mode=OneWay}"
+                            ToolTip.Tip="Enable / disable this adapter"
+                            x:CompileBindings="False"
+                            Command="{Binding $parent[ListBox].DataContext.ToggleAdapterCommand}"
+                            CommandParameter="{Binding}" />
             </Grid>
           </DataTemplate>
         </ListBox.ItemTemplate>
@@ -36,8 +43,15 @@
 
         <Border Classes="card" DataContext="{Binding Selected}" x:DataType="m:AdapterInfo">
           <StackPanel Spacing="6">
-            <TextBlock Classes="h1" Text="{Binding Name}" />
-            <TextBlock Classes="muted" Text="{Binding Description}" />
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel>
+                <TextBlock Classes="h1" Text="{Binding Name}" />
+                <TextBlock Classes="muted" Text="{Binding Description}" />
+              </StackPanel>
+              <Button Grid.Column="1" VerticalAlignment="Top" x:CompileBindings="False"
+                      Content="{Binding $parent[UserControl].DataContext.ToggleEnabledText}"
+                      Command="{Binding $parent[UserControl].DataContext.ToggleEnabledCommand}" />
+            </Grid>
             <WrapPanel Margin="0,8,0,0">
               <StackPanel Margin="0,0,32,8"><TextBlock Classes="muted" Text="Status" /><TextBlock Text="{Binding StatusText}" /></StackPanel>
               <StackPanel Margin="0,0,32,8"><TextBlock Classes="muted" Text="Type" /><TextBlock Text="{Binding KindText}" /></StackPanel>
@@ -51,7 +65,12 @@
           </StackPanel>
         </Border>
 
-        <Border Classes="card">
+        <Border Classes="card" IsVisible="{Binding SelectedIsDisabled}">
+          <TextBlock TextWrapping="Wrap"
+                     Text="This adapter is disabled. Enable it to view or change its IPv4 and DNS settings." />
+        </Border>
+
+        <Border Classes="card" IsVisible="{Binding SelectedIsEnabled}">
           <StackPanel Spacing="4">
             <TextBlock Classes="h2" Text="IPv4" />
 
@@ -96,13 +115,12 @@
           </StackPanel>
         </Border>
 
-        <Border Classes="card">
+        <Border Classes="card" IsVisible="{Binding SelectedIsEnabled}">
           <StackPanel Spacing="12">
             <WrapPanel>
               <Button Classes="accent" Content="Apply" Command="{Binding ApplyCommand}" Margin="0,0,8,8" />
               <Button Content="Revert" Command="{Binding RevertCommand}" Margin="0,0,8,8" />
               <Button Content="Renew DHCP lease" Command="{Binding RenewLeaseCommand}" Margin="0,0,8,8" />
-              <Button Content="{Binding ToggleEnabledText}" Command="{Binding ToggleEnabledCommand}" Margin="0,0,8,8" />
               <Button Content="Flush DNS cache" Command="{Binding FlushDnsCommand}" Margin="0,0,8,8" />
             </WrapPanel>
             <StackPanel Orientation="Horizontal" Spacing="8">

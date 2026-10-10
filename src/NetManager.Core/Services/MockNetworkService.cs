@@ -18,7 +18,7 @@ public sealed class MockNetworkService : INetworkService
         [
             new()
             {
-                InterfaceIndex = 12, Name = "Ethernet", Description = "Intel(R) Ethernet Connection I219-V",
+                Id = "{MOCK-ETH}", InterfaceIndex = 12, Name = "Ethernet", Description = "Intel(R) Ethernet Connection I219-V",
                 Kind = AdapterKind.Ethernet, Status = AdapterStatus.Connected, MacAddress = "3C:EC:EF:12:34:56",
                 SpeedBitsPerSecond = 1_000_000_000, Mtu = 1500, DhcpServer = "192.168.1.1",
                 Ipv4 = new Ipv4Config
@@ -29,14 +29,14 @@ public sealed class MockNetworkService : INetworkService
             },
             new()
             {
-                InterfaceIndex = 7, Name = "Wi-Fi", Description = "Intel(R) Wi-Fi 6 AX201 160MHz",
+                Id = "{MOCK-WIFI}", InterfaceIndex = 7, Name = "Wi-Fi", Description = "Intel(R) Wi-Fi 6 AX201 160MHz",
                 Kind = AdapterKind.Wireless, Status = AdapterStatus.Disconnected, MacAddress = "A4:C3:F0:AA:BB:CC",
                 SpeedBitsPerSecond = 0, Mtu = 1500,
                 Ipv4 = new Ipv4Config { Method = Ipv4Method.Automatic },
             },
             new()
             {
-                InterfaceIndex = 21, Name = "vEthernet (WSL)", Description = "Hyper-V Virtual Ethernet Adapter",
+                Id = "{MOCK-WSL}", InterfaceIndex = 21, Name = "vEthernet (WSL)", Description = "Hyper-V Virtual Ethernet Adapter",
                 Kind = AdapterKind.Virtual, Status = AdapterStatus.Connected, MacAddress = "00:15:5D:01:02:03",
                 SpeedBitsPerSecond = 10_000_000_000, Mtu = 1500,
                 Ipv4 = new Ipv4Config
@@ -105,13 +105,14 @@ public sealed class MockNetworkService : INetworkService
         }
     }
 
-    public async Task SetAdapterEnabledAsync(int interfaceIndex, bool enabled, CancellationToken ct = default)
+    public async Task SetAdapterEnabledAsync(string adapterId, bool enabled, CancellationToken ct = default)
     {
         await Delay(ct);
         lock (_gate)
         {
-            int i = _adapters.FindIndex(a => a.InterfaceIndex == interfaceIndex);
-            if (i >= 0) _adapters[i] = _adapters[i] with { Status = enabled ? AdapterStatus.Connected : AdapterStatus.Disabled };
+            int i = _adapters.FindIndex(a => a.Id == adapterId);
+            if (i < 0) throw new NetworkOperationException("Adapter not found.");
+            _adapters[i] = _adapters[i] with { Status = enabled ? AdapterStatus.Connected : AdapterStatus.Disabled };
         }
     }
 

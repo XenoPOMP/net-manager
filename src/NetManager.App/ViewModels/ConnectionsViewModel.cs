@@ -15,7 +15,7 @@ public partial class ConnectionsViewModel : ObservableObject
     public ObservableCollection<AdapterInfo> Adapters { get; } = [];
     public ObservableCollection<AddressRow> Addresses { get; } = [];
 
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasSelection))]
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasSelection), nameof(SelectedIsDisabled), nameof(SelectedIsEnabled))]
     [NotifyCanExecuteChangedFor(nameof(ApplyCommand), nameof(RevertCommand), nameof(ToggleEnabledCommand), nameof(RenewLeaseCommand), nameof(SaveProfileCommand))]
     private AdapterInfo? _selected;
 
@@ -27,6 +27,8 @@ public partial class ConnectionsViewModel : ObservableObject
     [ObservableProperty] private string _profileName = "";
 
     public bool HasSelection => Selected is not null;
+    public bool SelectedIsDisabled => Selected?.IsDisabled == true;
+    public bool SelectedIsEnabled => Selected is { IsDisabled: false };
     public bool IsAutomatic { get => !IsManual; set => IsManual = !value; }
     public string ToggleEnabledText => Selected?.IsEnabled == false ? "Enable adapter" : "Disable adapter";
 
@@ -84,10 +86,10 @@ public partial class ConnectionsViewModel : ObservableObject
         var ok = await _shell.RunAsync("Reading adapters", async () => list = await _network.GetAdaptersAsync(), "Adapters refreshed");
         if (!ok) return;
 
-        int? keep = Selected?.InterfaceIndex;
+        string? keep = Selected?.Id;
         Adapters.Clear();
         foreach (var a in list) Adapters.Add(a);
-        Selected = Adapters.FirstOrDefault(a => a.InterfaceIndex == keep) ?? Adapters.FirstOrDefault();
+        Selected = Adapters.FirstOrDefault(a => a.Id == keep) ?? Adapters.FirstOrDefault();
     }
 
     /// <summary>Builds a config from the editor fields, or reports why it can't.</summary>
@@ -135,12 +137,22 @@ public partial class ConnectionsViewModel : ObservableObject
     }
 
     [RelayCommand(CanExecute = nameof(HasAdapter))]
-    private async Task ToggleEnabledAsync()
+    private Task ToggleEnabledAsync() => Selected is { } a ? SetEnabledAsync(a, !a.IsEnabled) : Task.CompletedTask;
+
+    /// <summary>Per-row switch in the adapter list: flips the state of that adapter.</summary>
+    [RelayCommand]
+    private Task ToggleAdapterAsync(AdapterInfo? adapter) => adapter is null ? Task.CompletedTask : SetEnabledAsync(adapter, !adapter.IsEnabled);
+
+    private async Task SetEnabledAsync(AdapterInfo adapter, bool target)
     {
-        if (Selected is not { } a) return;
-        bool enable = !a.IsEnabled;
-        if (await _shell.RunAsync($"{(enable ? "Enabling" : "Disabling")} {a.Name}", () => _network.SetAdapterEnabledAsync(a.InterfaceIndex, enable)))
-            await RefreshAsync();
+
+        var ok = await _shell.RunAsync($"{(target ? "Enabling" : "Disabling")} {adapter.Name}",
+            () => _network.SetAdapterEnabledAsync(adapter.Id, target),
+            $"{adapter.Name} {(target ? "enabled" : "disabled")}");
+        // Windows needs a moment to bring a re-enabled adapter up before it reports addresses.
+        if (ok && target) await Task.Delay(2000);
+        // Refresh even on failure so a switch that was flipped in the UI snaps back to the real state.
+        await RefreshAsync();
     }
 
     [RelayCommand(CanExecute = nameof(HasAdapter))]

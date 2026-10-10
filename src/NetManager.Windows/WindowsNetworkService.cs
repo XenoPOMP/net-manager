@@ -28,7 +28,10 @@ public sealed class WindowsNetworkService : INetworkService
 
     private static List<AdapterInfo> ReadAdapters()
     {
-        var enabled = ReadEnabledMap();
+        // The IP stack (NetworkInterface) does not list administratively disabled adapters, so WMI is the
+        // source of truth for them — exactly what the "Network Connections" window shows.
+        var wmi = ReadWmiAdapters();
+        var disabledIds = wmi.Where(w => w.Disabled).Select(w => w.Guid).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var result = new List<AdapterInfo>();
         foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
         {
@@ -57,12 +60,13 @@ public sealed class WindowsNetworkService : INetworkService
             };
 
             AdapterStatus status;
-            if (enabled.TryGetValue(v4.Index, out var isEnabled) && !isEnabled) status = AdapterStatus.Disabled;
+            if (disabledIds.Contains(nic.Id)) status = AdapterStatus.Disabled;
             else status = nic.OperationalStatus == OperationalStatus.Up ? AdapterStatus.Connected : AdapterStatus.Disconnected;
 
             var mac = nic.GetPhysicalAddress().ToString();
             result.Add(new AdapterInfo
             {
+                Id = nic.Id,
                 InterfaceIndex = v4.Index,
                 Name = nic.Name,
                 Description = nic.Description,
@@ -75,19 +79,44 @@ public sealed class WindowsNetworkService : INetworkService
                 Ipv4 = ipv4,
             });
         }
+        // Disabled adapters that the IP stack no longer reports.
+        foreach (var w in wmi.Where(w => w.Disabled && !result.Any(a => a.Id.Equals(w.Guid, StringComparison.OrdinalIgnoreCase))))
+        {
+            result.Add(new AdapterInfo
+            {
+                Id = w.Guid,
+                InterfaceIndex = w.InterfaceIndex,
+                Name = w.Name,
+                Description = w.Description,
+                Kind = ClassifyKind(w.Description),
+                Status = AdapterStatus.Disabled,
+                MacAddress = w.Mac,
+                Ipv4 = new Ipv4Config(),
+            });
+        }
+
         return result.OrderBy(a => a.Kind == AdapterKind.Tunnel).ThenBy(a => a.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     private static AdapterKind ClassifyKind(NetworkInterface nic)
     {
-        var d = nic.Description;
         if (nic.NetworkInterfaceType is NetworkInterfaceType.Tunnel) return AdapterKind.Tunnel;
         if (nic.NetworkInterfaceType is NetworkInterfaceType.Wireless80211) return AdapterKind.Wireless;
-        string[] virtualMarkers = ["Virtual", "Hyper-V", "VMware", "VirtualBox", "TAP-", "Wintun", "WireGuard", "Npcap", "Loopback Adapter"];
-        if (virtualMarkers.Any(m => d.Contains(m, StringComparison.OrdinalIgnoreCase))) return AdapterKind.Virtual;
+        var byName = ClassifyKind(nic.Description);
+        if (byName == AdapterKind.Virtual) return byName;
         return nic.NetworkInterfaceType is NetworkInterfaceType.Ethernet or NetworkInterfaceType.GigabitEthernet
             or NetworkInterfaceType.FastEthernetT or NetworkInterfaceType.FastEthernetFx
             ? AdapterKind.Ethernet : AdapterKind.Other;
+    }
+
+    /// <summary>Guess from the driver description; used for adapters the IP stack doesn't report (disabled ones).</summary>
+    private static AdapterKind ClassifyKind(string description)
+    {
+        string[] virtualMarkers = ["Virtual", "Hyper-V", "VMware", "VirtualBox", "TAP-", "Wintun", "WireGuard", "Npcap", "Loopback Adapter"];
+        if (virtualMarkers.Any(m => description.Contains(m, StringComparison.OrdinalIgnoreCase))) return AdapterKind.Virtual;
+        string[] wifiMarkers = ["Wi-Fi", "Wireless", "802.11", "WLAN"];
+        if (wifiMarkers.Any(m => description.Contains(m, StringComparison.OrdinalIgnoreCase))) return AdapterKind.Wireless;
+        return AdapterKind.Ethernet;
     }
 
     /// <summary>A manually configured DNS list is stored as a non-empty NameServer value for the interface GUID.</summary>
@@ -97,21 +126,33 @@ public sealed class WindowsNetworkService : INetworkService
         return !string.IsNullOrWhiteSpace(key?.GetValue("NameServer") as string);
     }
 
-    private static Dictionary<int, bool> ReadEnabledMap()
+    private sealed record WmiAdapter(string Guid, int InterfaceIndex, string Name, string Description, string? Mac, bool Disabled);
+
+    /// <summary>Win32_NetworkAdapter rows that have a connection name (what ncpa.cpl lists). ConfigManagerErrorCode 22 = device disabled.</summary>
+    private static List<WmiAdapter> ReadWmiAdapters()
     {
-        var map = new Dictionary<int, bool>();
+        var list = new List<WmiAdapter>();
         try
         {
-            using var s = new ManagementObjectSearcher("SELECT InterfaceIndex, NetEnabled FROM Win32_NetworkAdapter WHERE NetConnectionID IS NOT NULL");
+            using var s = new ManagementObjectSearcher(
+                "SELECT GUID, InterfaceIndex, NetConnectionID, Name, MACAddress, ConfigManagerErrorCode FROM Win32_NetworkAdapter WHERE NetConnectionID IS NOT NULL");
             foreach (ManagementObject o in s.Get())
             {
                 using (o)
-                    if (o["InterfaceIndex"] is not null && o["NetEnabled"] is bool b)
-                        map[Convert.ToInt32(o["InterfaceIndex"])] = b;
+                {
+                    if (o["GUID"] is not string guid) continue;
+                    list.Add(new WmiAdapter(
+                        guid,
+                        o["InterfaceIndex"] is null ? 0 : Convert.ToInt32(o["InterfaceIndex"]),
+                        o["NetConnectionID"] as string ?? (o["Name"] as string ?? guid),
+                        o["Name"] as string ?? "",
+                        o["MACAddress"] as string,
+                        o["ConfigManagerErrorCode"] is not null && Convert.ToUInt32(o["ConfigManagerErrorCode"]) == 22));
+                }
             }
         }
-        catch (ManagementException) { /* fall back to OperationalStatus */ }
-        return map;
+        catch (ManagementException) { /* without WMI we simply can't list disabled adapters */ }
+        return list;
     }
 
     private static Dictionary<int, int> ReadInterfaceMetrics()
@@ -179,18 +220,22 @@ public sealed class WindowsNetworkService : INetworkService
             IpForwardTable.Delete(r.InterfaceIndex, r.Destination, r.PrefixLength, r.NextHop);
     }
 
-    public Task SetAdapterEnabledAsync(int interfaceIndex, bool enabled, CancellationToken ct = default) =>
+    public Task SetAdapterEnabledAsync(string adapterId, bool enabled, CancellationToken ct = default) =>
         Task.Run(() =>
         {
             RequireAdmin();
-            using var s = new ManagementObjectSearcher($"SELECT * FROM Win32_NetworkAdapter WHERE InterfaceIndex = {interfaceIndex}");
+            // The id goes into a WQL string, so only ever accept a real GUID.
+            if (!Guid.TryParse(adapterId, out var guid)) throw new NetworkOperationException("Invalid adapter id.");
+            var wql = $"SELECT * FROM Win32_NetworkAdapter WHERE GUID = '{guid.ToString("B").ToUpperInvariant()}'";
+            using var s = new ManagementObjectSearcher(wql);
             foreach (ManagementObject o in s.Get())
                 using (o)
                 {
-                    WmiCheck(enabled ? "Enable" : "Disable", o.InvokeMethod(enabled ? "Enable" : "Disable", null));
+                    var method = enabled ? "Enable" : "Disable";
+                    WmiCheck(method, o.InvokeMethod(method, null));
                     return;
                 }
-            throw new NetworkOperationException($"Adapter with interface index {interfaceIndex} was not found.");
+            throw new NetworkOperationException("Adapter was not found (it may have been removed).");
         }, ct);
 
     public Task RenewDhcpLeaseAsync(int interfaceIndex, CancellationToken ct = default) =>
