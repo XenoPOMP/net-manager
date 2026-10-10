@@ -89,6 +89,20 @@ and pick the backend at runtime: `OperatingSystem.IsWindows() ? WindowsNetworkSe
   the relaunched copy gets `--elevation-attempted` so a failed elevation can't loop, and `--no-elevate` skips the whole thing for debugging; command line is built with
   the unit-tested `CommandLine.Join` (Core); (3) if still not elevated (UAC declined) the app runs read-only: `CanModify` is false, an orange banner with a
   **Elevate privileges** button (`MainViewModel.RestartElevatedCommand`; orange `#D9480F` strip at the very top — the red strip under it is the missing-hardware one) is shown, and the backend's `RequireAdmin` rejects every write anyway.
+  `Elevation.TryRelaunch` returns an outcome (Started / Declined / Failed+detail) — never swallow a failure silently (first Windows test: the button "did nothing" and nothing said why).
+  Every attempt is logged to `%APPDATA%\NetManager\elevation.log`. The relaunched copy knows it was an attempt (`Elevation.WasRequested`) and, if still un-elevated, the banner shows a
+  second line with the most specific reason it can find (priority: exe on a **network location** → `__COMPAT_LAYER` has `RunAsInvoker` → account not in Administrators → generic "Windows ignored the request").
+  `TryRelaunch` also strips `RunAsInvoker` from its own environment before relaunching (`CompatLayer`, Core, tested).
+  **Real finding from the user's Win 11 ARM VM** (elevation.log): the exe ran from `Z:\NetManager.exe` — a WebDAV-backed VM shared folder (the relaunched copy saw it as
+  `\\localhost@9843\DavWWWRoot\...`); `__COMPAT_LAYER` was `DetectorsAppHealth Installer` (NOT RunAsInvoker); `runas` "started" but the new process was un-elevated, no UAC prompt.
+  Working theory: elevating from a network share/mapped drive doesn't work (separate elevated logon session, no mapped drives). Fix = run from a local folder; **don't** auto-copy the exe to a user-writable
+  folder and run that elevated (privilege-escalation hole). The log line also records `verb=`, `network=`, `adminAccount=`, `uac=[EnableLUA, ConsentPromptBehaviorUser, ConsentPromptBehaviorAdmin]`, user.
+  **Second finding (after running from a local folder):** the banner reported the account is *not in the Administrators group* (`Elevation.IsAdminAccount`, SID S-1-5-32-544 in the token groups,
+  true even for a UAC-filtered admin token) and Windows showed **no credentials prompt** on "Elevate privileges". A standard account normally gets one, so the usual causes are UAC off
+  (`EnableLUA=0`) or policy `ConsentPromptBehaviorUser=0` ("automatically deny elevation requests"); both are read from `HKLM\...\Policies\System` and named in the banner. For standard accounts the banner
+  also has **Sign in as administrator…** = `ShellExecute` verb `runasuser` (the "Run as different user" credentials dialog) — unverified on Windows; the app then runs under that admin's profile (own `%APPDATA%`).
+  Real fix for the user's VM: use an administrator account (or make this one an admin) / re-enable UAC prompting.
+  The published exe's manifest was verified to be in the PE `.rsrc` section (win-x64 and win-arm64), so a launch without a UAC prompt is an environment override, not our build.
   Note: a non-elevated parent that launches the exe with plain CreateProcess gets Windows error 740 before `Main` runs — nothing the app can do; run the IDE as admin.
 
 ## Localization (EN/RU)

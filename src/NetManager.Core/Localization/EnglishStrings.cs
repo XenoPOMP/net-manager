@@ -272,5 +272,14 @@ public static class EnglishStrings
         ["settings.theme.system"] = "Same as Windows",
         ["settings.theme.light"] = "Light",
         ["settings.theme.dark"] = "Dark",
+        ["elevate.requesting"] = "Requesting administrator rights…",
+        ["err.elevationFailed"] = "Could not request administrator rights: {0}",
+        ["banner.admin.attempted"] = "Elevation was requested, but Windows started NetManager without administrator rights again. Check the UAC settings; details are in %APPDATA%\\NetManager\\elevation.log.",
+        ["banner.admin.invoker"] = "The environment variable __COMPAT_LAYER contains RunAsInvoker, which tells Windows never to elevate programs. Remove it and start NetManager again.",
+        ["banner.admin.network"] = "NetManager is running from a network or shared folder ({0}). Windows cannot reliably elevate programs from there — copy NetManager.exe to a local drive (for example C:\\NetManager\\) and start it from there.",
+        ["banner.admin.standard"] = "This Windows account is not in the Administrators group, so Windows needs administrator credentials (or refuses). Sign in with an administrator account.",
+        ["banner.runAsAdmin"] = "Sign in as administrator…",
+        ["banner.admin.uacOff"] = "User Account Control is turned off on this PC, so a standard account cannot elevate. Sign in with an administrator account, or turn UAC on.",
+        ["banner.admin.uacDeny"] = "A security policy makes Windows deny elevation requests from standard accounts automatically (UAC: “Behavior of the elevation prompt for standard users”), so no password prompt appears. Sign in as an administrator, or use “Sign in as administrator…”.",
     };
 }

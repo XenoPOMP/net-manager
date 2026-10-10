@@ -31,3 +31,23 @@ public static class CommandLine
         return sb.Append('"').ToString();
     }
 }
+
+/// <summary>
+/// The <c>__COMPAT_LAYER</c> environment variable can contain "RunAsInvoker", which makes Windows ignore every elevation request
+/// (manifest <c>requireAdministrator</c> and the "runas" verb alike) — a common leftover of dev tooling. We detect it and clear it before relaunching.
+/// </summary>
+public static class CompatLayer
+{
+    public static bool ForcesRunAsInvoker(string? value) =>
+        Tokens(value).Any(t => t.Equals("RunAsInvoker", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>The value without the RunAsInvoker token; null when nothing else is left.</summary>
+    public static string? WithoutRunAsInvoker(string? value)
+    {
+        var rest = Tokens(value).Where(t => !t.Equals("RunAsInvoker", StringComparison.OrdinalIgnoreCase)).ToList();
+        return rest.Count == 0 ? null : string.Join(' ', rest);
+    }
+
+    private static IEnumerable<string> Tokens(string? value) =>
+        (value ?? "").Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
+}

@@ -18,3 +18,22 @@ public class CommandLineTests
     public void JoinSeparatesWithSpaces() =>
         Assert.Equal("--lang ru \"C:\\My Dir\\x.json\" --elevation-attempted", CommandLine.Join(["--lang", "ru", @"C:\My Dir\x.json", "--elevation-attempted"]));
 }
+
+public class CompatLayerTests
+{
+    [Theory]
+    [InlineData("RunAsInvoker", true)]
+    [InlineData("runasinvoker", true)]
+    [InlineData("~ WIN7RTM RunAsInvoker", true)]
+    [InlineData("WIN7RTM", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void DetectsRunAsInvoker(string? value, bool expected) => Assert.Equal(expected, CompatLayer.ForcesRunAsInvoker(value));
+
+    [Theory]
+    [InlineData("RunAsInvoker", null)]
+    [InlineData("~ WIN7RTM RunAsInvoker", "~ WIN7RTM")]
+    [InlineData("WIN7RTM", "WIN7RTM")]
+    [InlineData(null, null)]
+    public void StripsOnlyThatToken(string? value, string? expected) => Assert.Equal(expected, CompatLayer.WithoutRunAsInvoker(value));
+}

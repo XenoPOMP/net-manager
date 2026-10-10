@@ -30,6 +30,19 @@ public partial class MainViewModel : ObservableObject
     public string Backend => Network.BackendName;
     public string AdminBanner => Loc.T("banner.admin");
     public string AdminButton => Loc.T("banner.restartAdmin");
+    /// <summary>Second banner line. Only present when there is something concrete to say about why we are still not elevated.</summary>
+    public string AdminHint =>
+        Elevation.RunsFromNetworkLocation ? Loc.T("banner.admin.network", Environment.ProcessPath ?? "")
+        : Elevation.CompatLayerBlocksElevation ? Loc.T("banner.admin.invoker")
+        : !Elevation.IsAdminAccount && Elevation.UacIsOff ? Loc.T("banner.admin.uacOff")
+        : !Elevation.IsAdminAccount && Elevation.UacDeniesStandardUsers ? Loc.T("banner.admin.uacDeny")
+        : !Elevation.IsAdminAccount ? Loc.T("banner.admin.standard")
+        : Elevation.WasRequested ? Loc.T("banner.admin.attempted")
+        : "";
+    public bool HasAdminHint => AdminHint.Length > 0;
+    /// <summary>A standard account can't elevate itself; offer the "enter an administrator's credentials" route.</summary>
+    public bool ShowRunAsAdminUser => !Elevation.IsAdminAccount;
+    public string RunAsAdminUserButton => Loc.T("banner.runAsAdmin");
     public bool ShowAdminWarning => !Network.CanModify;
     public MaintenanceViewModel Maintenance { get; }
     public bool ShowMissingBanner => Maintenance.HasMissing;
@@ -102,21 +115,39 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(Backend));
         OnPropertyChanged(nameof(AdminBanner));
         OnPropertyChanged(nameof(AdminButton));
+        OnPropertyChanged(nameof(AdminHint));
+        OnPropertyChanged(nameof(RunAsAdminUserButton));
         OnPropertyChanged(nameof(MissingBannerText));
         OnPropertyChanged(nameof(MissingBannerButton));
         Shell.Info(Loc.T("status.ready"));
     }
 
-    /// <summary>Starts an elevated copy (UAC prompt) and closes this one; if the prompt is declined nothing changes.</summary>
+    /// <summary>Starts an elevated copy (UAC prompt) and closes this one; if the prompt is declined or fails nothing changes and the status bar says why.</summary>
     [RelayCommand]
-    private void RestartElevated()
+    private Task RestartElevatedAsync() => RelaunchAsync("runas");
+
+    /// <summary>Asks for an administrator's user name and password ("Run as different user"), for a standard account.</summary>
+    [RelayCommand]
+    private Task RunAsAdminUserAsync() => RelaunchAsync("runasuser");
+
+    private async Task RelaunchAsync(string verb)
     {
-        if (!Elevation.TryRelaunch(Environment.GetCommandLineArgs().Skip(1), markAttempted: false))
+        Shell.Info(Loc.T("elevate.requesting"));
+        var args = Environment.GetCommandLineArgs().Skip(1).ToList();
+        // ShellExecute blocks until the dialog is answered — keep that off the UI thread.
+        var outcome = await Task.Run(() => Elevation.TryRelaunch(args, markAttempted: true, verb));
+        switch (outcome.Result)
         {
-            Shell.Error(Loc.T("err.elevationDeclined"));
-            return;
+            case RelaunchResult.Started:
+                (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+                break;
+            case RelaunchResult.Declined:
+                Shell.Error(Loc.T("err.elevationDeclined"));
+                break;
+            default:
+                Shell.Error(Loc.T("err.elevationFailed", outcome.Detail ?? "?"));
+                break;
         }
-        (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
     }
 
     [RelayCommand]

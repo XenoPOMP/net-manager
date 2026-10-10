@@ -12,8 +12,14 @@
     <!-- Texts that stay on screen across a language change are bound to view-model properties. -->
     <Border Grid.Row="0" Background="#D9480F" Padding="14,8" IsVisible="{Binding ShowAdminWarning}">
       <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Foreground="White" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" Text="{Binding AdminBanner}" />
-        <Button Classes="banner" Grid.Column="1" Margin="12,0,0,0" Content="{Binding AdminButton}" Command="{Binding RestartElevatedCommand}" />
+        <StackPanel VerticalAlignment="Center" Spacing="2">
+          <TextBlock Foreground="White" FontWeight="SemiBold" TextWrapping="Wrap" Text="{Binding AdminBanner}" />
+          <TextBlock Foreground="White" FontSize="12" TextWrapping="Wrap" IsVisible="{Binding HasAdminHint}" Text="{Binding AdminHint}" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Center">
+          <Button Classes="banner" Content="{Binding AdminButton}" Command="{Binding RestartElevatedCommand}" />
+          <Button Classes="banner" IsVisible="{Binding ShowRunAsAdminUser}" Content="{Binding RunAsAdminUserButton}" Command="{Binding RunAsAdminUserCommand}" />
+        </StackPanel>
       </Grid>
     </Border>
 
