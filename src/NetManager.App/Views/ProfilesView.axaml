@@ -18,6 +18,8 @@
                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
                 <TextBlock Classes="muted" Text="{Binding AdapterName}" />
                 <TextBlock Classes="muted" FontSize="12" Text="{Binding Summary}" TextWrapping="Wrap" />
+                <!-- the adapter this profile is for is unplugged / disabled -->
+                <TextBlock Classes="warn" FontSize="12" Text="{Binding AdapterProblemText}" TextWrapping="Wrap" IsVisible="{Binding HasAdapterProblem}" />
               </StackPanel>
               <!-- shown only while the adapter's current settings match this profile -->
               <Border Grid.Column="1" Classes="badge" IsVisible="{Binding IsActive}" VerticalAlignment="Top" Margin="8,2,0,0">
@@ -32,11 +34,10 @@
         <StackPanel Spacing="10">
           <StackPanel IsVisible="{Binding Selected, Converter={x:Static ObjectConverters.IsNotNull}}" Spacing="6">
             <TextBlock Classes="h2" Text="{Binding Selected.Name}" />
-            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding Selected.IsActive}">
-              <Ellipse Classes="dot on" VerticalAlignment="Center" />
-              <TextBlock Text="{loc:T profiles.state.active}" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Ellipse Classes="dot on" VerticalAlignment="Center" IsVisible="{Binding Selected.IsActive}" />
+              <TextBlock TextWrapping="Wrap" Classes.warn="{Binding Selected.HasAdapterProblem}" Text="{Binding Selected.StateText}" />
             </StackPanel>
-            <TextBlock Classes="muted" TextWrapping="Wrap" IsVisible="{Binding !Selected.IsActive}" Text="{loc:T profiles.state.inactive}" />
             <TextBlock Text="{Binding SelectedAdapterLine}" />
             <TextBlock TextWrapping="Wrap" Text="{Binding Selected.Summary}" />
             <WrapPanel Margin="0,8,0,0">

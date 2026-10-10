@@ -53,6 +53,7 @@
     <Style Selector="Button.danger:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#A52518" /><Setter Property="Foreground" Value="White" /></Style>
     <Style Selector="Button.danger:disabled /template/ ContentPresenter"><Setter Property="Opacity" Value="0.45" /></Style>
     <Style Selector="Grid.row.isoff TextBlock"><Setter Property="Opacity" Value="0.5" /></Style>
+    <Style Selector="TextBlock.warn"><Setter Property="Foreground" Value="#D9480F" /><Setter Property="FontWeight" Value="SemiBold" /></Style>
     <Style Selector="Border.badge"><Setter Property="Background" Value="#2EAD4B" /><Setter Property="CornerRadius" Value="10" /><Setter Property="Padding" Value="8,2" /></Style>
     <Style Selector="Ellipse.dot"><Setter Property="Width" Value="10" /><Setter Property="Height" Value="10" /><Setter Property="Fill" Value="Gray" /></Style>
     <Style Selector="Ellipse.dot.on"><Setter Property="Fill" Value="#2EAD4B" /></Style>

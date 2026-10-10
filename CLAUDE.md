@@ -78,6 +78,11 @@ and pick the backend at runtime: `OperatingSystem.IsWindows() ? WindowsNetworkSe
   disabled adapters (WMI `ConfigManagerErrorCode == 22`) are *not* reported by the IP stack, so they come from WMI only. Identity is the adapter
   **GUID** (`AdapterInfo.Id`), not the interface index (disabled adapters may have none). Enable/disable = WMI `Enable()/Disable()` looked up by GUID
   (the id is `Guid.TryParse`-validated before entering a WQL string).
+- **Several adapters**: a profile belongs to one adapter. `ProfileStore.FindAdapter` is **MAC-first** (exactly one adapter with that MAC wins; shared MACs → name decides; no usable MAC → name,
+  which also lets a replaced adapter that took over the old name inherit the profile). A profile's identity is **name + adapter** (`ConnectionProfile.IsSameSlot`): saving "DHCP" for adapter B never
+  overwrites adapter A's "DHCP". The list is sorted by adapter, then name. Runtime flags `AdapterMissing` / `AdapterDisabled` (INPC, not saved) drive the orange hint in the list and `StateText`;
+  when a profile is found by MAC under a new name the stored `AdapterName` is healed (adapters get renamed: "Ethernet" → "MAIN"). Each adapter can have its own active profile at the same time.
+  `SaveAsync` re-evaluates immediately (`RefreshActiveAsync`).
 - **Active profile marker**: `ProfileMatcher` (Core, tested) says a profile is active iff the adapter's *current* state equals it (method, addresses, gateways + explicit metrics, DNS mode/servers *in order*,
   interface metric, and exactly the profile's static routes; DHCP profiles ignore leased addresses; an "automatic" gateway metric accepts whatever Windows stored). It is runtime state
   (`ConnectionProfile.IsActive`, INPC, `[JsonIgnore]`), recomputed by `ProfilesViewModel.RefreshActiveAsync` on `AppShell.NetworkChanged` (raised after every adapter/route read) and when the Profiles page

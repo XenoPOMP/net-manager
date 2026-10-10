@@ -136,7 +136,8 @@ public class ProfileMatcherTests
         var raised = new List<string?>();
         p.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
         p.IsActive = true; p.IsActive = true; p.IsActive = false;
-        Assert.Equal(["IsActive", "IsActive"], raised);   // only real changes notify
+        Assert.Equal(2, raised.Count(n => n == "IsActive"));      // true→true is not a change; only real changes notify
+        Assert.Equal(2, raised.Count(n => n == "StateText"));     // the derived text is announced along with it
 
         p.IsActive = true;
         Assert.DoesNotContain("IsActive", System.Text.Json.JsonSerializer.Serialize(p));

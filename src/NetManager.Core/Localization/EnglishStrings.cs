@@ -284,5 +284,7 @@ public static class EnglishStrings
         ["profiles.badge"] = "Active",
         ["profiles.state.active"] = "Active — the adapter's current settings match this profile.",
         ["profiles.state.inactive"] = "Not active — the adapter's current settings differ from this profile.",
+        ["profiles.adapterMissing"] = "Adapter “{0}” is not present — connect it to use this profile.",
+        ["profiles.adapterDisabled"] = "Adapter “{0}” is disabled — enable it to use this profile.",
     };
 }

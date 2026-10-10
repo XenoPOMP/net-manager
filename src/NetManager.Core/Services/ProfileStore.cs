@@ -11,12 +11,63 @@ public sealed class ConnectionProfile : INotifyPropertyChanged
 {
     public string Name { get; set; } = "";
     /// <summary>Adapter this profile targets, matched by name (e.g. "Ethernet") or, failing that, MAC address.</summary>
-    public string AdapterName { get; set; } = "";
+    private string _adapterName = "";
+
+    /// <summary>Notifies: it is refreshed when the adapter was renamed in Windows (see ProfilesViewModel.RefreshActiveAsync).</summary>
+    public string AdapterName
+    {
+        get => _adapterName;
+        set { if (_adapterName != value) { _adapterName = value; Raise(nameof(AdapterName)); Raise(nameof(AdapterProblemText)); Raise(nameof(StateText)); } }
+    }
     public string? AdapterMac { get; set; }
     public Ipv4Config Ipv4 { get; set; } = new();
     public List<ProfileRoute> Routes { get; set; } = [];
 
-    private bool _isActive;
+    private bool _isActive, _adapterMissing, _adapterDisabled;
+
+    /// <summary>Runtime state (never saved): the adapter this profile is for isn't present right now (e.g. an unplugged USB adapter).</summary>
+    [JsonIgnore]
+    public bool AdapterMissing
+    {
+        get => _adapterMissing;
+        set { if (_adapterMissing != value) { _adapterMissing = value; Raise(nameof(AdapterMissing)); Raise(nameof(HasAdapterProblem)); Raise(nameof(AdapterProblemText)); Raise(nameof(StateText)); } }
+    }
+
+    /// <summary>Runtime state (never saved): the adapter exists but is disabled.</summary>
+    [JsonIgnore]
+    public bool AdapterDisabled
+    {
+        get => _adapterDisabled;
+        set { if (_adapterDisabled != value) { _adapterDisabled = value; Raise(nameof(AdapterDisabled)); Raise(nameof(HasAdapterProblem)); Raise(nameof(AdapterProblemText)); Raise(nameof(StateText)); } }
+    }
+
+    [JsonIgnore]
+    public bool HasAdapterProblem => _adapterMissing || _adapterDisabled;
+
+    /// <summary>Why this profile can't be used right now ("" when it can).</summary>
+    [JsonIgnore]
+    public string AdapterProblemText =>
+        _adapterMissing ? Loc.T("profiles.adapterMissing", AdapterName)
+        : _adapterDisabled ? Loc.T("profiles.adapterDisabled", AdapterName)
+        : "";
+
+    /// <summary>One line for the details panel: active, unusable (and why), or simply different from the adapter's current settings.</summary>
+    [JsonIgnore]
+    public string StateText =>
+        _isActive ? Loc.T("profiles.state.active")
+        : HasAdapterProblem ? AdapterProblemText
+        : Loc.T("profiles.state.inactive");
+
+    private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    /// <summary>
+    /// Saving "DHCP" for one adapter must not replace another adapter's "DHCP": a profile is identified by its name
+    /// *and* the adapter it is for (same MAC, or — when there is none — same adapter name).
+    /// </summary>
+    public bool IsSameSlot(string name, AdapterInfo adapter) =>
+        Name.Equals(name, StringComparison.OrdinalIgnoreCase)
+        && (!string.IsNullOrEmpty(AdapterMac) && string.Equals(AdapterMac, adapter.MacAddress, StringComparison.OrdinalIgnoreCase)
+            || AdapterName.Equals(adapter.Name, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// True while the adapter's current settings match this profile (see <see cref="ProfileMatcher"/>). Runtime state, never saved:
@@ -31,6 +82,7 @@ public sealed class ConnectionProfile : INotifyPropertyChanged
             if (_isActive == value) return;
             _isActive = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsActive)));
+            Raise(nameof(StateText));
         }
     }
 
@@ -100,10 +152,22 @@ public sealed class ProfileStore(string? path = null)
         File.Move(tmp, FilePath, overwrite: true);
     }
 
+    /// <summary>
+    /// The MAC address is the stable identity (people rename adapters — "Ethernet" → "MAIN" — and a new adapter can reuse an old name),
+    /// so it wins when exactly one adapter has it; if several share it (cloned MACs) the name decides among them. Without a usable MAC
+    /// the name is used, which is also what lets a profile follow a replaced adapter that took over the old name.
+    /// </summary>
     public static AdapterInfo? FindAdapter(ConnectionProfile p, IEnumerable<AdapterInfo> adapters)
     {
         var list = adapters.ToList();
-        return list.FirstOrDefault(a => a.Name.Equals(p.AdapterName, StringComparison.OrdinalIgnoreCase))
-            ?? (p.AdapterMac is null ? null : list.FirstOrDefault(a => string.Equals(a.MacAddress, p.AdapterMac, StringComparison.OrdinalIgnoreCase)));
+        bool SameName(AdapterInfo a) => a.Name.Equals(p.AdapterName, StringComparison.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrEmpty(p.AdapterMac))
+        {
+            var byMac = list.Where(a => string.Equals(a.MacAddress, p.AdapterMac, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (byMac.Count == 1) return byMac[0];
+            if (byMac.Count > 1) return byMac.FirstOrDefault(SameName);
+        }
+        return list.FirstOrDefault(SameName);
     }
 }

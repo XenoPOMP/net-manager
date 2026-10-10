@@ -284,5 +284,7 @@ public static class RussianStrings
         ["profiles.badge"] = "Активен",
         ["profiles.state.active"] = "Активен — текущие настройки адаптера совпадают с профилем.",
         ["profiles.state.inactive"] = "Не активен — текущие настройки адаптера отличаются от профиля.",
+        ["profiles.adapterMissing"] = "Адаптер «{0}» не найден — подключите его, чтобы использовать профиль.",
+        ["profiles.adapterDisabled"] = "Адаптер «{0}» отключён — включите его, чтобы использовать профиль.",
     };
 }

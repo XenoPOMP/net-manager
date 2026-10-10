@@ -33,6 +33,7 @@ public partial class ProfilesViewModel : ObservableObject
         _store = store;
         _shell = shell;
         foreach (var p in store.Load()) Profiles.Add(p);
+        Resort();
         Selected = Profiles.FirstOrDefault();
         // Which profile is "active" is derived from the live system state, so recompute whenever that state was re-read or changed.
         shell.NetworkChanged += () => _ = RefreshActiveAsync();
@@ -54,7 +55,24 @@ public partial class ProfilesViewModel : ObservableObject
                 {
                     var adapters = await _network.GetAdaptersAsync();
                     var routes = await _network.GetRoutesAsync();
-                    foreach (var p in Profiles) p.IsActive = ProfileMatcher.IsActive(p, adapters, routes);
+                    bool renamed = false;
+                    foreach (var p in Profiles)
+                    {
+                        var a = ProfileStore.FindAdapter(p, adapters);
+                        p.AdapterMissing = a is null;
+                        p.AdapterDisabled = a is { IsDisabled: true };
+                        p.IsActive = a is not null && ProfileMatcher.IsActive(p, adapters, routes);
+
+                        // Found by MAC but under a new name: the adapter was renamed in Windows, so keep the profile's label current.
+                        if (a is not null && !string.IsNullOrEmpty(p.AdapterMac)
+                            && string.Equals(a.MacAddress, p.AdapterMac, StringComparison.OrdinalIgnoreCase)
+                            && !a.Name.Equals(p.AdapterName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            p.AdapterName = a.Name;
+                            renamed = true;
+                        }
+                    }
+                    if (renamed) { Persist(); Resort(); OnPropertyChanged(nameof(SelectedAdapterLine)); }
                 }
                 catch (Exception) { foreach (var p in Profiles) p.IsActive = false; }
             } while (_activeDirty);
@@ -80,11 +98,26 @@ public partial class ProfilesViewModel : ObservableObject
         {
             Name = name, AdapterName = adapter.Name, AdapterMac = adapter.MacAddress, Ipv4 = config.Clone(), Routes = routes,
         };
-        int i = Profiles.ToList().FindIndex(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        // Same name for a *different* adapter is a different profile — only the same name on the same adapter is replaced.
+        int i = Profiles.ToList().FindIndex(p => p.IsSameSlot(name, adapter));
         if (i >= 0) Profiles[i] = profile; else Profiles.Add(profile);
+        Resort();
         Persist();
         Selected = profile;
         _shell.Info(Loc.T("profiles.saved", name, routes.Count));
+        _ = RefreshActiveAsync();   // a profile saved from the current settings is active right away
+    }
+
+    /// <summary>Profiles of the same adapter stay together: by adapter, then by name.</summary>
+    private void Resort()
+    {
+        var sorted = Profiles.OrderBy(p => p.AdapterName, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            int j = Profiles.IndexOf(sorted[i]);
+            if (j != i) Profiles.Move(j, i);   // Move keeps the selected item selected
+        }
     }
 
     private void Persist()
