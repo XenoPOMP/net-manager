@@ -51,13 +51,27 @@ How the build number gets into the exe: the script reads `build-number.txt`, add
 - Don't edit `build-number.txt` by hand except when bumping the version, and never lower it without bumping `<Version>`: two different exes would then show the same `vX · build N`.
 - Commit `build-number.txt` whenever you commit after publishing, so a fresh clone keeps counting instead of repeating numbers.
 
-**Bumping the version** (do this for a release or a notable milestone; SemVer, still `0.x` while roadmap features are missing — new feature → MINOR `0.1.0 → 0.2.0`, fixes only → PATCH `0.1.0 → 0.1.1`, `1.0.0` when it is considered stable):
-1. Edit `<Version>` in `Directory.Build.props`.
-2. Set `build-number.txt` to `0`, so the new version starts at build 1 (`(version, build)` stays unique and readable: `v0.2.0 · build 3` = the third publish of 0.2.0).
-3. `dotnet build NetManager.slnx` and `dotnet test` (0 errors / 0 warnings, all tests pass).
-4. `./publish-win.sh all` → the status bar must read `v<new version> · build 1`.
-5. Commit `Directory.Build.props` + `build-number.txt` (and optionally `git tag v<new version>`).
-Choice made: the counter restarts per version. The alternative — never resetting, so build numbers grow across versions — is also unique; switching to it only means skipping step 2.
+**Pre-releases.** `<Version>` takes a full SemVer pre-release, e.g. `0.2.0-beta.1`. Verified with a real build: AssemblyVersion/FileVersion become `0.2.0.0` (numbers only — the label
+cannot live in the 4-part Windows version), InformationalVersion/ProductVersion become `0.2.0-beta.1+<sha>`, and the status bar reads `v0.2.0-beta.1 · build 1`. So nothing else needs to
+change for a pre-release; keep `<Version>` the single place (don't also set `VersionPrefix`/`VersionSuffix`).
+- Naming: `-alpha.N` → `-beta.N` → `-rc.N` → the plain release. Always end the label with a **numeric identifier** (`beta.1`, not `beta1`): SemVer compares numeric identifiers numerically but
+  the rest alphabetically, so `beta.2 < beta.10` yet `beta2 > beta10`. Order: `0.2.0-alpha.1 < 0.2.0-beta.1 < 0.2.0-beta.10 < 0.2.0-rc.1 < 0.2.0`. A pre-release comes *before* the release with the same
+  numbers: after `0.2.0-rc.2` ship `0.2.0`, not `0.2.1`.
+- The label is part of the version, so **every new label or number is a version bump** (counter back to 0): `0.2.0-beta.1 · build 4` and `0.2.0-beta.2 · build 1` are different exes.
+- Use a pre-release when an exe goes to someone else or you want a named milestone for testing; for your own day-to-day testing the build number alone is enough — don't invent versions.
+- Tag with the same string (`git tag v0.2.0-beta.1`) and mark it a pre-release if you publish it on a hosting site.
+
+**Bumping the version — always with the script** (`tools/bump-version.sh <version>`; a release `0.2.0`, a pre-release `0.2.0-beta.1`, `1.0.0-rc.2`…). It rejects anything that is not valid SemVer 2.0
+(`1.0`, `v1.0.0`, `01.0.0`, `1.0.0-beta..1`, `1.0.0-01`, `+metadata`…), refuses to "bump" to the current version, edits `<Version>` in `Directory.Build.props`, sets `build-number.txt` to `0`, and
+warns about a pre-release label without a numeric last identifier. Policy: SemVer, still `0.x` while roadmap features are missing — new feature → MINOR (`0.1.0 → 0.2.0`), fixes only → PATCH (`0.1.0 → 0.1.1`),
+`1.0.0` when it is considered stable.
+1. `tools/bump-version.sh 0.2.0-beta.1` — prints `version 0.1.0 → 0.2.0-beta.1` and `build number 5 → 0`; check that is what you meant (it does not compare precedence, so a typo like `0.0.2` is accepted).
+2. `dotnet build NetManager.slnx` and `dotnet test` (0 errors / 0 warnings, all tests pass).
+3. `./publish-win.sh all` → the status bar must read `v0.2.0-beta.1 · build 1`.
+4. Commit `Directory.Build.props` + `build-number.txt` (and optionally `git tag v0.2.0-beta.1`).
+By hand (not recommended): edit `<Version>` and write `0` into `build-number.txt` — that is all the script does besides validating.
+Choice made: the counter restarts per version string (`(version, build)` stays unique and readable: `v0.2.0 · build 3` = third publish of 0.2.0). The alternative — never resetting — is also unique;
+switching to it only means dropping the reset.
 
 **Stale-exe check:** the user runs the exe on a Windows VM and copies each new `publish/<rid>/NetManager.exe` there by hand. When a fix "persisted" or a bug is reported, first compare the status-bar
 version/build with the one you just published. This already happened once: a Profiles error that the new build could not produce was still showing.
@@ -71,6 +85,7 @@ build-number.txt                 last build number handed out by publish-win.sh 
 src/NetManager.Core              platform-neutral: models, validation, policies, stores, Loc, INetworkService, MockNetworkService
 src/NetManager.Windows           WindowsNetworkService: IP Helper (iphlpapi) + WMI + registry + pnputil/VBoxManage
 src/NetManager.App               Avalonia UI (Views/*.axaml, ViewModels/*)
+tools/bump-version.sh            sets <Version> (SemVer incl. pre-releases) and resets build-number.txt — see Versioning
 tools/IconRender + tools/make-icon.sh   regenerate Assets/icon.png and Assets/app.ico from the vector artwork (Assets/icon.svg); not part of the solution
 tests/NetManager.Core.Tests      xunit tests for Core (IPv4 maths, validation, stores, localization, removal policy, recovery)
 ```
