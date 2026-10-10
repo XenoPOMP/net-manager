@@ -5,11 +5,17 @@
     <AssemblyName>NetManager</AssemblyName>
     <RootNamespace>NetManager.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- exe icon (Explorer, taskbar, UAC prompt); the same artwork is Assets/icon.svg, rendered to icon.png/app.ico -->
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <!-- System.Management (WMI) is COM-based. The Avalonia template sets this to false, which makes every WMI call throw
          "Built-in COM has been disabled via a feature switch". Must stay true. -->
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
   </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\icon.png" />   <!-- window / taskbar icon (Window.Icon) -->
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.4" />

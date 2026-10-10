@@ -3,7 +3,7 @@
         xmlns:vm="using:NetManager.App.ViewModels"
         x:Class="NetManager.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
-        Title="NetManager" Width="1280" Height="760" MinWidth="900" MinHeight="560"
+        Title="NetManager" Icon="/Assets/icon.png" Width="1280" Height="760" MinWidth="900" MinHeight="560"
         Background="{DynamicResource PageBackground}"
         WindowStartupLocation="CenterScreen">
 
