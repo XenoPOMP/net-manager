@@ -3,10 +3,11 @@
              xmlns:vm="using:NetManager.App.ViewModels"
              xmlns:s="using:NetManager.Core.Services"
              x:Class="NetManager.App.Views.ProfilesView"
+             xmlns:loc="using:NetManager.App.Localization"
              x:DataType="vm:ProfilesViewModel">
 
   <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
-    <TextBlock Classes="h1" Text="Profiles" />
+    <TextBlock Classes="h1" Text="{loc:T profiles.title}" />
 
     <Grid Grid.Row="1" ColumnDefinitions="360,20,*">
       <ListBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding Selected}">
@@ -25,20 +26,20 @@
         <StackPanel Spacing="10">
           <StackPanel IsVisible="{Binding Selected, Converter={x:Static ObjectConverters.IsNotNull}}" Spacing="6">
             <TextBlock Classes="h2" Text="{Binding Selected.Name}" />
-            <TextBlock Text="{Binding Selected.AdapterName, StringFormat='Adapter: {0}'}" />
+            <TextBlock Text="{Binding SelectedAdapterLine}" />
             <TextBlock TextWrapping="Wrap" Text="{Binding Selected.Summary}" />
             <WrapPanel Margin="0,8,0,0">
-              <Button Classes="accent" Content="Activate profile" Command="{Binding ApplyCommand}" Margin="0,0,8,0" />
-              <Button Content="Delete" Command="{Binding DeleteCommand}" />
+              <Button Classes="accent" Content="{loc:T profiles.activate}" Command="{Binding ApplyCommand}" Margin="0,0,8,0" />
+              <Button Content="{loc:T profiles.delete}" Command="{Binding DeleteCommand}" />
             </WrapPanel>
           </StackPanel>
           <TextBlock Classes="muted" TextWrapping="Wrap"
                      IsVisible="{Binding Selected, Converter={x:Static ObjectConverters.IsNull}}"
-                     Text="No profiles yet. Open Connections, configure an adapter, then click “Save as profile”." />
+                     Text="{loc:T profiles.empty}" />
         </StackPanel>
       </Border>
     </Grid>
 
-    <TextBlock Grid.Row="2" Classes="muted" FontSize="12" Text="{Binding StorePath, StringFormat='Stored in {0}'}" />
+    <TextBlock Grid.Row="2" Classes="muted" FontSize="12" Text="{Binding StoreInfo}" />
   </Grid>
 </UserControl>

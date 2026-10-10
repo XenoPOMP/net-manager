@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using NetManager.Core.Localization;
 using NetManager.Core.Services;
 
 namespace NetManager.App.ViewModels;
@@ -6,7 +7,7 @@ namespace NetManager.App.ViewModels;
 /// <summary>Shared status bar state and a single place that turns exceptions into messages.</summary>
 public partial class AppShell : ObservableObject
 {
-    [ObservableProperty] private string _status = "Ready";
+    [ObservableProperty] private string _status = Loc.T("status.ready");
     [ObservableProperty] private bool _isError;
     [ObservableProperty] private bool _isBusy;
 
@@ -17,16 +18,16 @@ public partial class AppShell : ObservableObject
     public async Task<bool> RunAsync(string description, Func<Task> action, string? success = null)
     {
         IsBusy = true;
-        Info(description + "…");
+        Info(Loc.T("status.progress", description));
         try
         {
             await action();
-            Info(success ?? description + " — done");
+            Info(success ?? Loc.T("status.done", description));
             return true;
         }
         catch (NetworkOperationException ex) { Error(ex.Message); }
-        catch (OperationCanceledException) { Info("Cancelled"); }
-        catch (Exception ex) { Error($"{description} failed: {ex.Message}"); }
+        catch (OperationCanceledException) { Info(Loc.T("status.cancelled")); }
+        catch (Exception ex) { Error(Loc.T("status.failed", description, ex.Message)); }
         finally { IsBusy = false; }
         return false;
     }

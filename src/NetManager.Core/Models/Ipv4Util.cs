@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Sockets;
 
+using NetManager.Core.Localization;
+
 namespace NetManager.Core.Models;
 
 public static class Ipv4Util
@@ -68,24 +70,24 @@ public static class Ipv4Util
         var errors = new List<string>();
         if (c.Method == Ipv4Method.Manual)
         {
-            if (c.Addresses.Count == 0) errors.Add("At least one IP address is required.");
+            if (c.Addresses.Count == 0) errors.Add(Loc.T("val.needAddress"));
             foreach (var a in c.Addresses)
             {
-                if (!TryParseAddress(a.Address, out var ip)) { errors.Add($"'{a.Address}' is not a valid IPv4 address."); continue; }
-                if (a.PrefixLength is < 1 or > 32) errors.Add($"Subnet mask of {a.Address} is invalid.");
+                if (!TryParseAddress(a.Address, out var ip)) { errors.Add(Loc.T("val.badAddress", a.Address)); continue; }
+                if (a.PrefixLength is < 1 or > 32) errors.Add(Loc.T("val.badMask", a.Address));
                 uint v = ToUInt(ip);
-                if (v == 0 || v >> 28 >= 0xE) errors.Add($"{a.Address} is not a usable unicast address.");
+                if (v == 0 || v >> 28 >= 0xE) errors.Add(Loc.T("val.notUnicast", a.Address));
             }
             if (!string.IsNullOrWhiteSpace(c.Gateway))
             {
-                if (!TryParseAddress(c.Gateway, out _)) errors.Add($"Gateway '{c.Gateway}' is not a valid IPv4 address.");
+                if (!TryParseAddress(c.Gateway, out _)) errors.Add(Loc.T("val.badGateway", c.Gateway));
                 else if (c.Addresses.Count > 0 && !c.Addresses.Any(a => InSameSubnet(a.Address, c.Gateway!, a.PrefixLength)))
-                    errors.Add("Gateway is not inside any configured subnet.");
+                    errors.Add(Loc.T("val.gatewayOutside"));
             }
         }
         if (!c.DnsAutomatic)
             foreach (var d in c.DnsServers)
-                if (!TryParseAddress(d, out _)) errors.Add($"DNS server '{d}' is not a valid IPv4 address.");
+                if (!TryParseAddress(d, out _)) errors.Add(Loc.T("val.badDns", d));
         return errors;
     }
 }

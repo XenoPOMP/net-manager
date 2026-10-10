@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NetManager.Core.Localization;
 using NetManager.Core.Models;
 using NetManager.Core.Services;
 
@@ -15,10 +16,12 @@ public partial class ProfilesViewModel : ObservableObject
     public ObservableCollection<ConnectionProfile> Profiles { get; } = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedAdapterLine))]
     [NotifyCanExecuteChangedFor(nameof(ApplyCommand), nameof(DeleteCommand))]
     private ConnectionProfile? _selected;
 
-    public string StorePath => _store.FilePath;
+    public string StoreInfo => Loc.T("profiles.storedIn", _store.FilePath);
+    public string SelectedAdapterLine => Loc.T("profiles.adapter", Selected?.AdapterName);
 
     public ProfilesViewModel(INetworkService network, ProfileStore store, AppShell shell)
     {
@@ -50,13 +53,13 @@ public partial class ProfilesViewModel : ObservableObject
         if (i >= 0) Profiles[i] = profile; else Profiles.Add(profile);
         Persist();
         Selected = profile;
-        _shell.Info($"Profile '{name}' saved ({routes.Count} static route{(routes.Count == 1 ? "" : "s")})");
+        _shell.Info(Loc.T("profiles.saved", name, routes.Count));
     }
 
     private void Persist()
     {
         try { _store.Save(Profiles); }
-        catch (Exception ex) { _shell.Error($"Could not write {_store.FilePath}: {ex.Message}"); }
+        catch (Exception ex) { _shell.Error(Loc.T("profiles.writeFail", _store.FilePath, ex.Message)); }
     }
 
     private bool HasSelection => Selected is not null;
@@ -65,11 +68,11 @@ public partial class ProfilesViewModel : ObservableObject
     private async Task ApplyAsync()
     {
         if (Selected is not { } p) return;
-        await _shell.RunAsync($"Activating profile '{p.Name}'", async () =>
+        await _shell.RunAsync(Loc.T("profiles.activating", p.Name), async () =>
         {
             var adapters = await _network.GetAdaptersAsync();
             var adapter = ProfileStore.FindAdapter(p, adapters)
-                ?? throw new NetworkOperationException($"Adapter '{p.AdapterName}' used by this profile is not present.");
+                ?? throw new NetworkOperationException(Loc.T("profiles.noAdapter", p.AdapterName));
 
             await _network.ApplyIpv4Async(adapter.InterfaceIndex, p.Ipv4);
 
@@ -87,8 +90,8 @@ public partial class ProfilesViewModel : ObservableObject
                 catch (NetworkOperationException ex) when (ex.Message.Contains("exists", StringComparison.OrdinalIgnoreCase)) { /* already there */ }
                 catch (NetworkOperationException ex) { failures.Add($"{r.Destination}/{r.PrefixLength}: {ex.Message}"); }
             }
-            if (failures.Count > 0) throw new NetworkOperationException("Profile applied, but some routes failed — " + string.Join("; ", failures));
-        }, $"Profile '{p.Name}' is active");
+            if (failures.Count > 0) throw new NetworkOperationException(Loc.T("profiles.routesFailed", string.Join("; ", failures)));
+        }, Loc.T("profiles.active", p.Name));
     }
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
@@ -98,6 +101,6 @@ public partial class ProfilesViewModel : ObservableObject
         Profiles.Remove(p);
         Persist();
         Selected = Profiles.FirstOrDefault();
-        _shell.Info($"Profile '{p.Name}' deleted");
+        _shell.Info(Loc.T("profiles.deleted", p.Name));
     }
 }

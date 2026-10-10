@@ -2,52 +2,59 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:NetManager.App.ViewModels"
              x:Class="NetManager.App.Views.RoutesView"
+             xmlns:loc="using:NetManager.App.Localization"
              x:DataType="vm:RoutesViewModel">
 
   <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12">
 
-    <TextBlock Grid.Row="0" Classes="h1" Text="Routing table" />
+    <TextBlock Grid.Row="0" Classes="h1" Text="{loc:T routes.title}" />
 
     <Grid Grid.Row="1" ColumnDefinitions="Auto,12,260,12,*,Auto,12,Auto,8,Auto">
-      <ComboBox Grid.Column="0" ItemsSource="{x:Static vm:RoutesViewModel.Filters}" SelectedItem="{Binding SelectedFilter}" Width="130" />
-      <TextBox Grid.Column="2" Text="{Binding Search}" PlaceholderText="Filter by network, gateway, interface…" />
+      <ComboBox Grid.Column="0" Width="150" x:CompileBindings="False"
+                ItemsSource="{x:Static vm:RoutesViewModel.Filters}"
+                SelectedValueBinding="{Binding Value}" SelectedValue="{Binding Filter}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:FilterOption"><TextBlock Text="{Binding Label}" /></DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBox Grid.Column="2" Text="{Binding Search}" PlaceholderText="{loc:T routes.searchPh}" />
       <TextBlock Grid.Column="4" Classes="muted" Text="{Binding CountText}" VerticalAlignment="Center" />
-      <Button Grid.Column="7" Content="Refresh" Command="{Binding RefreshCommand}" />
-      <Button Grid.Column="9" Content="Delete selected" Command="{Binding DeleteSelectedCommand}" />
+      <Button Grid.Column="7" Content="{loc:T common.refresh}" Command="{Binding RefreshCommand}" />
+      <Button Grid.Column="9" Content="{loc:T routes.delete}" Command="{Binding DeleteSelectedCommand}" />
     </Grid>
 
     <DataGrid Grid.Row="2" x:CompileBindings="False" ItemsSource="{Binding Routes}" SelectedItem="{Binding SelectedRoute}"
               IsReadOnly="True" AutoGenerateColumns="False" CanUserSortColumns="True" CanUserResizeColumns="True"
               GridLinesVisibility="Horizontal" SelectionMode="Single">
       <DataGrid.Columns>
-        <DataGridTextColumn Header="Network" Binding="{Binding DestinationCidr}" Width="170" />
-        <DataGridTextColumn Header="Netmask" Binding="{Binding Mask}" Width="150" />
-        <DataGridTextColumn Header="Gateway" Binding="{Binding NextHopDisplay}" Width="130" />
-        <DataGridTextColumn Header="Interface" Binding="{Binding InterfaceName}" Width="*" />
-        <DataGridTextColumn Header="Metric" Binding="{Binding EffectiveMetric}" Width="80" />
-        <DataGridTextColumn Header="Source" Binding="{Binding Protocol}" Width="130" />
-        <DataGridTextColumn Header="Type" Binding="{Binding Kind}" Width="90" />
-        <DataGridCheckBoxColumn Header="Persistent" Binding="{Binding IsPersistent}" Width="105" />
+        <DataGridTextColumn Header="{loc:T routes.col.network}" Binding="{Binding DestinationCidr}" Width="Auto" />
+        <DataGridTextColumn Header="{loc:T routes.col.netmask}" Binding="{Binding Mask}" Width="Auto" />
+        <DataGridTextColumn Header="{loc:T routes.col.gateway}" Binding="{Binding NextHopDisplay}" Width="Auto" />
+        <DataGridTextColumn Header="{loc:T routes.col.interface}" Binding="{Binding InterfaceName}" Width="*" MinWidth="120" />
+        <DataGridTextColumn Header="{loc:T routes.col.metric}" Binding="{Binding EffectiveMetric}" Width="Auto" />
+        <DataGridTextColumn Header="{loc:T routes.col.source}" Binding="{Binding ProtocolDisplay}" Width="Auto" />
+        <DataGridTextColumn Header="{loc:T routes.col.type}" Binding="{Binding KindDisplay}" Width="Auto" />
+        <DataGridCheckBoxColumn Header="{loc:T routes.col.persistent}" Binding="{Binding IsPersistent}" Width="125" />
       </DataGrid.Columns>
     </DataGrid>
 
     <Border Grid.Row="3" Classes="card">
       <StackPanel Spacing="8">
-        <TextBlock Classes="h2" Text="Add static route" />
-        <Grid ColumnDefinitions="*,12,*,12,*,12,90,12,*,12,Auto,12,Auto">
-          <StackPanel Grid.Column="0"><TextBlock Classes="muted" Text="Network" /><TextBox Text="{Binding NewDestination}" PlaceholderText="10.8.0.0" /></StackPanel>
-          <StackPanel Grid.Column="2"><TextBlock Classes="muted" Text="Netmask / prefix" /><TextBox Text="{Binding NewMask}" /></StackPanel>
-          <StackPanel Grid.Column="4"><TextBlock Classes="muted" Text="Gateway" /><TextBox Text="{Binding NewGateway}" PlaceholderText="empty = on-link" /></StackPanel>
-          <StackPanel Grid.Column="6"><TextBlock Classes="muted" Text="Metric" /><TextBox Text="{Binding NewMetric}" /></StackPanel>
+        <TextBlock Classes="h2" Text="{loc:T routes.add.title}" />
+        <Grid ColumnDefinitions="*,12,*,12,*,12,90,12,1.5*,12,Auto,12,Auto">
+          <StackPanel Grid.Column="0"><TextBlock Classes="muted" Text="{loc:T routes.add.network}" /><TextBox Text="{Binding NewDestination}" PlaceholderText="10.8.0.0" /></StackPanel>
+          <StackPanel Grid.Column="2"><TextBlock Classes="muted" Text="{loc:T routes.add.mask}" /><TextBox Text="{Binding NewMask}" /></StackPanel>
+          <StackPanel Grid.Column="4"><TextBlock Classes="muted" Text="{loc:T routes.add.gateway}" /><TextBox Text="{Binding NewGateway}" PlaceholderText="{loc:T routes.add.gatewayPh}" /></StackPanel>
+          <StackPanel Grid.Column="6"><TextBlock Classes="muted" Text="{loc:T routes.add.metric}" /><TextBox Text="{Binding NewMetric}" /></StackPanel>
           <StackPanel Grid.Column="8">
-            <TextBlock Classes="muted" Text="Interface" />
+            <TextBlock Classes="muted" Text="{loc:T routes.add.interface}" />
             <ComboBox ItemsSource="{Binding Interfaces}" SelectedItem="{Binding NewInterface}" HorizontalAlignment="Stretch" />
           </StackPanel>
-          <CheckBox Grid.Column="10" Content="Persistent" IsChecked="{Binding NewPersistent}" VerticalAlignment="Bottom" />
-          <Button Grid.Column="12" Classes="accent" Content="Add route" Command="{Binding AddCommand}" VerticalAlignment="Bottom" />
+          <CheckBox Grid.Column="10" Content="{loc:T routes.add.persistent}" IsChecked="{Binding NewPersistent}" VerticalAlignment="Bottom" />
+          <Button Grid.Column="12" Classes="accent" Content="{loc:T routes.add.button}" Command="{Binding AddCommand}" VerticalAlignment="Bottom" />
         </Grid>
         <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
-                   Text="Only static routes can be deleted. Dynamic routes (DHCP, RIP, ICMP redirects…) and system routes are managed by Windows. Persistent routes survive a reboot, like 'route -p add'." />
+                   Text="{loc:T routes.hint}" />
       </StackPanel>
     </Border>
   </Grid>

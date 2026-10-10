@@ -3,34 +3,47 @@
         xmlns:vm="using:NetManager.App.ViewModels"
         x:Class="NetManager.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
-        Title="NetManager" Width="1180" Height="760" MinWidth="900" MinHeight="560"
+        Title="NetManager" Width="1280" Height="760" MinWidth="900" MinHeight="560"
         WindowStartupLocation="CenterScreen">
 
   <Grid RowDefinitions="Auto,*,Auto">
 
+    <!-- Texts that stay on screen across a language change are bound to view-model properties. -->
     <Border Grid.Row="0" Background="#B7791F" Padding="14,8" IsVisible="{Binding ShowAdminWarning}">
-      <TextBlock Foreground="White" TextWrapping="Wrap"
-                 Text="NetManager is not running as administrator — you can look at the configuration, but changes will be rejected by Windows." />
+      <TextBlock Foreground="White" TextWrapping="Wrap" Text="{Binding AdminBanner}" />
     </Border>
 
-    <Grid Grid.Row="1" ColumnDefinitions="200,*">
+    <Grid Grid.Row="1" ColumnDefinitions="232,*">
       <Border Grid.Column="0" Background="{DynamicResource NavBackground}" Padding="8,12">
-        <StackPanel Spacing="8">
-          <TextBlock Classes="h2" Margin="10,2,0,8" Text="NetManager" />
-          <ListBox ItemsSource="{Binding Pages}" SelectedItem="{Binding SelectedPage}" Background="Transparent">
-            <ListBox.ItemTemplate>
-              <DataTemplate x:DataType="vm:NavItem">
-                <StackPanel Orientation="Horizontal" Spacing="12" Margin="2,6">
-                  <TextBlock Text="{Binding Glyph}" Width="20" TextAlignment="Center" FontSize="16" />
-                  <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
-                </StackPanel>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
-        </StackPanel>
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Bottom" Spacing="4" Margin="2,8,2,0">
+            <TextBlock Classes="muted" FontSize="12" Text="{Binding LanguageLabel}" />
+            <ComboBox HorizontalAlignment="Stretch" x:CompileBindings="False"
+                      ItemsSource="{x:Static vm:MainViewModel.Languages}"
+                      SelectedValueBinding="{Binding Code}" SelectedValue="{Binding SelectedLanguage}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:LanguageOption"><TextBlock Text="{Binding Name}" /></DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
+
+          <StackPanel Spacing="8">
+            <TextBlock Classes="h2" Margin="10,2,0,8" Text="NetManager" />
+            <ListBox ItemsSource="{Binding Pages}" SelectedItem="{Binding SelectedPage}" Background="Transparent">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:NavItem">
+                  <StackPanel Orientation="Horizontal" Spacing="12" Margin="2,6">
+                    <TextBlock Text="{Binding Glyph}" Width="20" TextAlignment="Center" FontSize="16" />
+                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="150" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </StackPanel>
+        </DockPanel>
       </Border>
 
-      <ContentControl Grid.Column="1" Content="{Binding SelectedPage.Page}" Margin="20" />
+      <ContentControl Grid.Column="1" Content="{Binding CurrentPage}" Margin="20" />
     </Grid>
 
     <Border Grid.Row="2" Padding="14,6" Background="{DynamicResource NavBackground}"

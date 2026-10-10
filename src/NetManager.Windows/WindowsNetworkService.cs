@@ -5,6 +5,7 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Security.Principal;
 using Microsoft.Win32;
+using NetManager.Core.Localization;
 using NetManager.Core.Models;
 using NetManager.Core.Services;
 
@@ -225,7 +226,7 @@ public sealed class WindowsNetworkService : INetworkService
         {
             RequireAdmin();
             // The id goes into a WQL string, so only ever accept a real GUID.
-            if (!Guid.TryParse(adapterId, out var guid)) throw new NetworkOperationException("Invalid adapter id.");
+            if (!Guid.TryParse(adapterId, out var guid)) throw new NetworkOperationException(Loc.T("err.badAdapterId"));
             var wql = $"SELECT * FROM Win32_NetworkAdapter WHERE GUID = '{guid.ToString("B").ToUpperInvariant()}'";
             using var s = new ManagementObjectSearcher(wql);
             foreach (ManagementObject o in s.Get())
@@ -235,7 +236,7 @@ public sealed class WindowsNetworkService : INetworkService
                     WmiCheck(method, o.InvokeMethod(method, null));
                     return;
                 }
-            throw new NetworkOperationException("Adapter was not found (it may have been removed).");
+            throw new NetworkOperationException(Loc.T("err.adapterGone"));
         }, ct);
 
     public Task RenewDhcpLeaseAsync(int interfaceIndex, CancellationToken ct = default) =>
@@ -250,70 +251,32 @@ public sealed class WindowsNetworkService : INetworkService
         Task.Run(() =>
         {
             var psi = new ProcessStartInfo("ipconfig.exe", "/flushdns") { CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true };
-            using var p = Process.Start(psi) ?? throw new NetworkOperationException("Could not start ipconfig.");
+            using var p = Process.Start(psi) ?? throw new NetworkOperationException(Loc.T("err.ipconfigStart"));
             p.WaitForExit();
-            if (p.ExitCode != 0) throw new NetworkOperationException("ipconfig /flushdns failed (administrator rights are required).");
+            if (p.ExitCode != 0) throw new NetworkOperationException(Loc.T("err.flushFail"));
         }, ct);
 
     private static ManagementObject GetAdapterConfig(int ifIndex)
     {
         using var s = new ManagementObjectSearcher($"SELECT * FROM Win32_NetworkAdapterConfiguration WHERE InterfaceIndex = {ifIndex}");
         foreach (ManagementObject o in s.Get()) return o;
-        throw new NetworkOperationException($"Adapter with interface index {ifIndex} is not IP-enabled or no longer exists.");
+        throw new NetworkOperationException(Loc.T("err.noIpAdapter", ifIndex));
     }
 
     private void RequireAdmin()
     {
-        if (!CanModify) throw new NetworkOperationException("Administrator rights are required. Restart NetManager as administrator.");
+        if (!CanModify) throw new NetworkOperationException(Loc.T("err.admin"));
     }
 
     private static void WmiCheck(string method, object? returnValue)
     {
         uint code = returnValue is null ? 0 : Convert.ToUInt32(returnValue);
         if (code is 0 or 1) return; // 1 = success, reboot required
-        throw new NetworkOperationException($"{method} failed: {DescribeWmiError(code)} (code {code}).");
+        throw new NetworkOperationException(Loc.T("err.wmiFailed", method, DescribeWmiError(code), code));
     }
 
-    private static string DescribeWmiError(uint code) => code switch
-    {
-        64 => "method not supported on this platform",
-        65 => "unknown failure",
-        66 => "invalid subnet mask",
-        67 => "error processing an instance that was returned",
-        68 => "invalid input parameter",
-        69 => "more than five gateways specified",
-        70 => "invalid IP address",
-        71 => "invalid gateway IP address",
-        72 => "error accessing the registry",
-        73 => "invalid domain name",
-        74 => "invalid host name",
-        75 => "no primary or secondary WINS server defined",
-        76 => "invalid file",
-        77 => "invalid system path",
-        78 => "file copy failed",
-        79 => "invalid security parameter",
-        80 => "unable to configure TCP/IP service",
-        81 => "unable to configure DHCP service",
-        82 => "unable to renew DHCP lease",
-        83 => "unable to release DHCP lease",
-        84 => "IP not enabled on adapter",
-        85 => "IPX not enabled on adapter",
-        86 => "frame/network number bounds error",
-        87 => "invalid frame type",
-        88 => "invalid network number",
-        89 => "duplicate network number",
-        90 => "parameter out of bounds",
-        91 => "access denied",
-        92 => "out of memory",
-        93 => "already exists",
-        94 => "path, file or object not found",
-        95 => "unable to notify service",
-        96 => "unable to notify DNS service",
-        97 => "interface not configurable",
-        98 => "not all DHCP leases could be released/renewed",
-        100 => "DHCP not enabled on adapter",
-        _ => "unspecified error",
-    };
+    /// <summary>The most relevant Win32_NetworkAdapterConfiguration return codes are translated; others read "unspecified error".</summary>
+    private static string DescribeWmiError(uint code) => Loc.TryT($"wmi.{code}") ?? Loc.T("wmi.unknown");
 
     // ---------------------------------------------------------------- routes
 
@@ -379,13 +342,13 @@ public sealed class WindowsNetworkService : INetworkService
         Task.Run(() =>
         {
             RequireAdmin();
-            if (!Ipv4Util.IsValidAddress(route.Destination)) throw new NetworkOperationException("Destination is not a valid IPv4 address.");
-            if (route.PrefixLength is < 0 or > 32) throw new NetworkOperationException("Prefix length must be between 0 and 32.");
-            if (route.NextHop is not null && !Ipv4Util.IsValidAddress(route.NextHop)) throw new NetworkOperationException("Gateway is not a valid IPv4 address.");
-            if (route.Persistent && route.NextHop is null) throw new NetworkOperationException("A persistent route needs a gateway.");
+            if (!Ipv4Util.IsValidAddress(route.Destination)) throw new NetworkOperationException(Loc.T("err.badDest"));
+            if (route.PrefixLength is < 0 or > 32) throw new NetworkOperationException(Loc.T("err.badPrefix"));
+            if (route.NextHop is not null && !Ipv4Util.IsValidAddress(route.NextHop)) throw new NetworkOperationException(Loc.T("err.badGw"));
+            if (route.Persistent && route.NextHop is null) throw new NetworkOperationException(Loc.T("err.persistNeedsGw"));
 
             int ifIndex = route.InterfaceIndex ?? ResolveInterface(route.NextHop)
-                ?? throw new NetworkOperationException("Gateway is not reachable from any adapter; choose an interface explicitly.");
+                ?? throw new NetworkOperationException(Loc.T("err.noIfaceForGw"));
 
             IpForwardTable.Create(ifIndex, route.Destination, route.PrefixLength, route.NextHop, route.Metric);
             if (route.Persistent) PersistentRoutes.Add(route.Destination, route.PrefixLength, route.NextHop!, route.Metric);

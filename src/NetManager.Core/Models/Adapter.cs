@@ -1,3 +1,5 @@
+using NetManager.Core.Localization;
+
 namespace NetManager.Core.Models;
 
 public enum AdapterKind { Ethernet, Wireless, Virtual, Tunnel, Loopback, Other }
@@ -24,21 +26,21 @@ public sealed record AdapterInfo
     public bool IsEnabled => Status != AdapterStatus.Disabled;
     public bool IsConnected => Status == AdapterStatus.Connected;
     public bool IsDisabled => Status == AdapterStatus.Disabled;
-    public string StatusText => Status switch { AdapterStatus.Connected => "Connected", AdapterStatus.Disconnected => "Cable unplugged / not connected", _ => "Disabled" };
-    public string KindText => Kind.ToString();
+    public string StatusText => Loc.T($"adapter.status.{Status}");
+    public string KindText => Loc.T($"adapter.kind.{Kind}");
     /// <summary>Second line of the list row: the address, or the reason there isn't one.</summary>
     public string RowStatus => Status switch
     {
-        AdapterStatus.Disabled => "Disabled",
-        AdapterStatus.Disconnected when Ipv4.Addresses.Count == 0 => "Not connected",
+        AdapterStatus.Disabled => Loc.T("adapter.status.Disabled"),
+        AdapterStatus.Disconnected when Ipv4.Addresses.Count == 0 => Loc.T("adapter.row.notConnected"),
         _ => PrimaryAddress,
     };
-    public string PrimaryAddress => Ipv4.Addresses.FirstOrDefault()?.ToString() ?? "No address";
+    public string PrimaryAddress => Ipv4.Addresses.FirstOrDefault()?.ToString() ?? Loc.T("adapter.noAddress");
     public string SpeedText => SpeedBitsPerSecond switch
     {
         <= 0 or long.MaxValue => "—",
-        >= 1_000_000_000 => $"{SpeedBitsPerSecond / 1_000_000_000.0:0.#} Gbit/s",
-        _ => $"{SpeedBitsPerSecond / 1_000_000.0:0.#} Mbit/s",
+        >= 1_000_000_000 => Loc.T("speed.gbit", SpeedBitsPerSecond / 1_000_000_000.0),
+        _ => Loc.T("speed.mbit", SpeedBitsPerSecond / 1_000_000.0),
     };
     public bool CanConfigure => Kind != AdapterKind.Loopback;
 }

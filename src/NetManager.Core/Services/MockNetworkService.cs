@@ -1,3 +1,4 @@
+using NetManager.Core.Localization;
 using NetManager.Core.Models;
 
 namespace NetManager.Core.Services;
@@ -9,7 +10,7 @@ public sealed class MockNetworkService : INetworkService
     private readonly List<AdapterInfo> _adapters;
     private readonly List<RouteEntry> _routes;
 
-    public string BackendName => "Demo data (not Windows)";
+    public string BackendName => Loc.T("mock.backend");
     public bool CanModify => true;
 
     public MockNetworkService()
@@ -92,7 +93,7 @@ public sealed class MockNetworkService : INetworkService
         lock (_gate)
         {
             int i = _adapters.FindIndex(a => a.InterfaceIndex == interfaceIndex);
-            if (i < 0) throw new NetworkOperationException("Adapter not found.");
+            if (i < 0) throw new NetworkOperationException(Loc.T("mock.noAdapter"));
             var c = config.Clone();
             if (c.Method == Ipv4Method.Automatic)
             {
@@ -111,7 +112,7 @@ public sealed class MockNetworkService : INetworkService
         lock (_gate)
         {
             int i = _adapters.FindIndex(a => a.Id == adapterId);
-            if (i < 0) throw new NetworkOperationException("Adapter not found.");
+            if (i < 0) throw new NetworkOperationException(Loc.T("mock.noAdapter"));
             _adapters[i] = _adapters[i] with { Status = enabled ? AdapterStatus.Connected : AdapterStatus.Disabled };
         }
     }
@@ -132,7 +133,7 @@ public sealed class MockNetworkService : INetworkService
         {
             int ifIndex = route.InterfaceIndex ?? _adapters.First(a => a.Status == AdapterStatus.Connected).InterfaceIndex;
             if (_routes.Any(r => r.Destination == route.Destination && r.PrefixLength == route.PrefixLength && r.NextHop == route.NextHop && r.InterfaceIndex == ifIndex))
-                throw new NetworkOperationException("The object already exists.");
+                throw new NetworkOperationException(Loc.T("mock.exists"));
             _routes.Add(Route(route.Destination, route.PrefixLength, route.NextHop, ifIndex, route.Metric, 0, RouteKind.Static, "Static", route.Persistent)
                 with { InterfaceName = NameOf(ifIndex) });
         }

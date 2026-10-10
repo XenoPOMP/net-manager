@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using NetManager.App.ViewModels;
 using NetManager.App.Views;
+using NetManager.Core.Localization;
 using NetManager.Core.Services;
 using NetManager.Windows;
 
@@ -18,7 +19,9 @@ public partial class App : Application
         {
             // Real Windows backend on Windows, demo data everywhere else (lets the UI be developed on macOS/Linux).
             INetworkService network = OperatingSystem.IsWindows() ? new WindowsNetworkService() : new MockNetworkService();
-            desktop.MainWindow = new MainWindow { DataContext = new MainViewModel(network, new ProfileStore()) };
+            var settings = new SettingsStore();
+            Loc.SetLanguage(settings.Load().Language ?? Loc.DetectSystemLanguage());
+            desktop.MainWindow = new MainWindow { DataContext = new MainViewModel(network, new ProfileStore(), settings) };
         }
         base.OnFrameworkInitializationCompleted();
     }

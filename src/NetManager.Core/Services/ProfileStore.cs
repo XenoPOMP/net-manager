@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using NetManager.Core.Localization;
 using NetManager.Core.Models;
 
 namespace NetManager.Core.Services;
@@ -19,11 +20,11 @@ public sealed class ConnectionProfile
     {
         get
         {
-            var parts = new List<string> { Ipv4.Method == Ipv4Method.Automatic ? "DHCP" : "Manual" };
+            var parts = new List<string> { Loc.T(Ipv4.Method == Ipv4Method.Automatic ? "profile.dhcp" : "profile.manual") };
             if (Ipv4.Method == Ipv4Method.Manual && Ipv4.Addresses.Count > 0) parts.Add(string.Join(", ", Ipv4.Addresses));
-            if (Ipv4.Method == Ipv4Method.Manual && !string.IsNullOrEmpty(Ipv4.Gateway)) parts.Add($"gw {Ipv4.Gateway}");
-            if (!Ipv4.DnsAutomatic && Ipv4.DnsServers.Count > 0) parts.Add($"DNS {string.Join(", ", Ipv4.DnsServers)}");
-            if (Routes.Count > 0) parts.Add($"{Routes.Count} route{(Routes.Count == 1 ? "" : "s")}");
+            if (Ipv4.Method == Ipv4Method.Manual && !string.IsNullOrEmpty(Ipv4.Gateway)) parts.Add(Loc.T("profile.gw", Ipv4.Gateway));
+            if (!Ipv4.DnsAutomatic && Ipv4.DnsServers.Count > 0) parts.Add(Loc.T("profile.dns", string.Join(", ", Ipv4.DnsServers)));
+            if (Routes.Count > 0) parts.Add(Loc.T("profile.routes", Routes.Count));
             return string.Join(" · ", parts);
         }
     }

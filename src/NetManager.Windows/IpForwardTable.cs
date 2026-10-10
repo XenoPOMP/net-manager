@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Net;
 using System.Runtime.InteropServices;
+using NetManager.Core.Localization;
 using NetManager.Core.Models;
 using NetManager.Core.Services;
 using static NetManager.Windows.NativeMethods;
@@ -17,7 +18,7 @@ internal static class IpForwardTable
     public static List<Row> Read()
     {
         int rc = GetIpForwardTable2(AF_INET, out var table);
-        if (rc != 0) throw new NetworkOperationException($"GetIpForwardTable2 failed: {new Win32Exception(rc).Message}");
+        if (rc != 0) throw new NetworkOperationException(Loc.T("err.routeTable", new Win32Exception(rc).Message));
         try
         {
             int count = Marshal.ReadInt32(table);
@@ -54,7 +55,7 @@ internal static class IpForwardTable
             WriteAddress(row + OffNextHop, nextHop ?? "0.0.0.0");
             Marshal.WriteInt32(row + OffMetric, metric);
             Marshal.WriteInt32(row + OffProtocol, 3); // MIB_IPPROTO_NETMGMT, same as `route add`
-            Check(CreateIpForwardEntry2(row), "create route");
+            Check(CreateIpForwardEntry2(row), "err.createRoute");
         }
         finally { Marshal.FreeHGlobal(row); }
     }
@@ -69,15 +70,15 @@ internal static class IpForwardTable
             WriteAddress(row + OffDest, destination);
             Marshal.WriteByte(row + OffPrefixLen, (byte)prefix);
             WriteAddress(row + OffNextHop, nextHop ?? "0.0.0.0");
-            Check(DeleteIpForwardEntry2(row), "delete route");
+            Check(DeleteIpForwardEntry2(row), "err.deleteRoute");
         }
         finally { Marshal.FreeHGlobal(row); }
     }
 
-    private static void Check(int rc, string what)
+    private static void Check(int rc, string messageKey)
     {
         if (rc == 0) return;
-        throw new NetworkOperationException($"Could not {what}: {new Win32Exception(rc).Message} (error {rc}).");
+        throw new NetworkOperationException(Loc.T(messageKey, new Win32Exception(rc).Message, rc));
     }
 
     private static string? ReadAddress(IntPtr sockaddrInet)

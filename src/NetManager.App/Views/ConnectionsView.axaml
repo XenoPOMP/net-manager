@@ -3,6 +3,7 @@
              xmlns:vm="using:NetManager.App.ViewModels"
              xmlns:m="using:NetManager.Core.Models"
              x:Class="NetManager.App.Views.ConnectionsView"
+             xmlns:loc="using:NetManager.App.Localization"
              x:DataType="vm:ConnectionsViewModel">
 
   <Grid ColumnDefinitions="300,20,*">
@@ -10,8 +11,8 @@
     <!-- adapter list -->
     <DockPanel Grid.Column="0">
       <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
-        <TextBlock Classes="h1" Text="Connections" />
-        <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" />
+        <TextBlock Classes="h1" Text="{loc:T conn.title}" />
+        <Button Grid.Column="1" Content="{loc:T common.refresh}" Command="{Binding RefreshCommand}" />
       </Grid>
       <ListBox ItemsSource="{Binding Adapters}" SelectedItem="{Binding Selected}">
         <ListBox.ItemTemplate>
@@ -27,7 +28,7 @@
               <!-- Like the Disable/Enable action in Windows' Network Connections window, but one click away on every row. -->
               <ToggleSwitch Grid.Column="2" OnContent="" OffContent="" VerticalAlignment="Center" Margin="8,0,0,0"
                             IsChecked="{Binding IsEnabled, Mode=OneWay}"
-                            ToolTip.Tip="Enable / disable this adapter"
+                            ToolTip.Tip="{loc:T conn.switchTip}"
                             x:CompileBindings="False"
                             Command="{Binding $parent[ListBox].DataContext.ToggleAdapterCommand}"
                             CommandParameter="{Binding}" />
@@ -53,13 +54,13 @@
                       Command="{Binding $parent[UserControl].DataContext.ToggleEnabledCommand}" />
             </Grid>
             <WrapPanel Margin="0,8,0,0">
-              <StackPanel Margin="0,0,32,8"><TextBlock Classes="muted" Text="Status" /><TextBlock Text="{Binding StatusText}" /></StackPanel>
-              <StackPanel Margin="0,0,32,8"><TextBlock Classes="muted" Text="Type" /><TextBlock Text="{Binding KindText}" /></StackPanel>
-              <StackPanel Margin="0,0,32,8"><TextBlock Classes="muted" Text="MAC address" /><TextBlock Text="{Binding MacAddress}" /></StackPanel>
-              <StackPanel Margin="0,0,32,8"><TextBlock Classes="muted" Text="Speed" /><TextBlock Text="{Binding SpeedText}" /></StackPanel>
-              <StackPanel Margin="0,0,32,8"><TextBlock Classes="muted" Text="MTU" /><TextBlock Text="{Binding Mtu}" /></StackPanel>
+              <StackPanel Margin="0,0,32,8"><TextBlock Classes="muted" Text="{loc:T conn.status}" /><TextBlock Text="{Binding StatusText}" /></StackPanel>
+              <StackPanel Margin="0,0,32,8"><TextBlock Classes="muted" Text="{loc:T conn.type}" /><TextBlock Text="{Binding KindText}" /></StackPanel>
+              <StackPanel Margin="0,0,32,8"><TextBlock Classes="muted" Text="{loc:T conn.mac}" /><TextBlock Text="{Binding MacAddress}" /></StackPanel>
+              <StackPanel Margin="0,0,32,8"><TextBlock Classes="muted" Text="{loc:T conn.speed}" /><TextBlock Text="{Binding SpeedText}" /></StackPanel>
+              <StackPanel Margin="0,0,32,8"><TextBlock Classes="muted" Text="{loc:T conn.mtu}" /><TextBlock Text="{Binding Mtu}" /></StackPanel>
               <StackPanel Margin="0,0,32,8" IsVisible="{Binding DhcpServer, Converter={x:Static ObjectConverters.IsNotNull}}">
-                <TextBlock Classes="muted" Text="DHCP server" /><TextBlock Text="{Binding DhcpServer}" />
+                <TextBlock Classes="muted" Text="{loc:T conn.dhcpServer}" /><TextBlock Text="{Binding DhcpServer}" />
               </StackPanel>
             </WrapPanel>
           </StackPanel>
@@ -67,33 +68,33 @@
 
         <Border Classes="card" IsVisible="{Binding SelectedIsDisabled}">
           <TextBlock TextWrapping="Wrap"
-                     Text="This adapter is disabled. Enable it to view or change its IPv4 and DNS settings." />
+                     Text="{loc:T conn.disabledNotice}" />
         </Border>
 
         <Border Classes="card" IsVisible="{Binding SelectedIsEnabled}">
           <StackPanel Spacing="4">
-            <TextBlock Classes="h2" Text="IPv4" />
+            <TextBlock Classes="h2" Text="{loc:T conn.ipv4}" />
 
-            <TextBlock Classes="field" Text="Method" />
+            <TextBlock Classes="field" Text="{loc:T conn.method}" />
             <StackPanel Orientation="Horizontal" Spacing="24">
-              <RadioButton GroupName="method" Content="Automatic (DHCP)" IsChecked="{Binding IsAutomatic}" />
-              <RadioButton GroupName="method" Content="Manual" IsChecked="{Binding IsManual}" />
+              <RadioButton GroupName="method" Content="{loc:T conn.methodAuto}" IsChecked="{Binding IsAutomatic}" />
+              <RadioButton GroupName="method" Content="{loc:T conn.methodManual}" IsChecked="{Binding IsManual}" />
             </StackPanel>
 
             <StackPanel IsVisible="{Binding IsAutomatic}" Margin="0,6,0,0">
               <TextBlock Classes="muted" TextWrapping="Wrap"
-                         Text="{Binding Selected.PrimaryAddress, StringFormat='Current lease: {0}'}" />
+                         Text="{Binding CurrentLeaseText}" />
             </StackPanel>
 
             <StackPanel IsVisible="{Binding IsManual}">
-              <TextBlock Classes="field" Text="Addresses (netmask may be written as 255.255.255.0 or 24)" />
+              <TextBlock Classes="field" Text="{loc:T conn.addresses}" />
               <ItemsControl ItemsSource="{Binding Addresses}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:AddressRow">
                     <Grid ColumnDefinitions="*,8,*,8,Auto" Margin="0,0,0,6">
-                      <TextBox Grid.Column="0" Text="{Binding Address}" PlaceholderText="Address, e.g. 192.168.1.10" />
-                      <TextBox Grid.Column="2" Text="{Binding Mask}" PlaceholderText="Netmask" />
-                      <Button Grid.Column="4" Content="✕" ToolTip.Tip="Remove address"
+                      <TextBox Grid.Column="0" Text="{Binding Address}" PlaceholderText="{loc:T conn.addressPh}" />
+                      <TextBox Grid.Column="2" Text="{Binding Mask}" PlaceholderText="{loc:T conn.maskPh}" />
+                      <Button Grid.Column="4" Content="✕" ToolTip.Tip="{loc:T conn.removeAddress}"
                               x:CompileBindings="False"
                               Command="{Binding $parent[ItemsControl].DataContext.RemoveAddressCommand}"
                               CommandParameter="{Binding}" />
@@ -101,15 +102,15 @@
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
-              <Button Content="＋ Add address" Command="{Binding AddAddressCommand}" />
+              <Button Content="{loc:T conn.addAddress}" Command="{Binding AddAddressCommand}" />
 
-              <TextBlock Classes="field" Text="Default gateway (leave empty for none)" />
-              <TextBox Text="{Binding Gateway}" PlaceholderText="e.g. 192.168.1.1" Width="320" HorizontalAlignment="Left" />
+              <TextBlock Classes="field" Text="{loc:T conn.gateway}" />
+              <TextBox Text="{Binding Gateway}" PlaceholderText="{loc:T conn.gatewayPh}" Width="320" HorizontalAlignment="Left" />
             </StackPanel>
 
-            <TextBlock Classes="h2" Margin="0,18,0,0" Text="DNS" />
-            <CheckBox Content="Obtain DNS servers automatically" IsChecked="{Binding DnsAutomatic}" />
-            <TextBlock Classes="field" Text="DNS servers (one per line, in order of preference)" />
+            <TextBlock Classes="h2" Margin="0,18,0,0" Text="{loc:T conn.dns}" />
+            <CheckBox Content="{loc:T conn.dnsAuto}" IsChecked="{Binding DnsAutomatic}" />
+            <TextBlock Classes="field" Text="{loc:T conn.dnsServers}" />
             <TextBox Text="{Binding DnsText}" AcceptsReturn="True" Height="84" Width="320" HorizontalAlignment="Left"
                      IsEnabled="{Binding !DnsAutomatic}" PlaceholderText="1.1.1.1&#x0a;8.8.8.8" />
           </StackPanel>
@@ -118,23 +119,23 @@
         <Border Classes="card" IsVisible="{Binding SelectedIsEnabled}">
           <StackPanel Spacing="12">
             <WrapPanel>
-              <Button Classes="accent" Content="Apply" Command="{Binding ApplyCommand}" Margin="0,0,8,8" />
-              <Button Content="Revert" Command="{Binding RevertCommand}" Margin="0,0,8,8" />
-              <Button Content="Renew DHCP lease" Command="{Binding RenewLeaseCommand}" Margin="0,0,8,8" />
-              <Button Content="Flush DNS cache" Command="{Binding FlushDnsCommand}" Margin="0,0,8,8" />
+              <Button Classes="accent" Content="{loc:T conn.apply}" Command="{Binding ApplyCommand}" Margin="0,0,8,8" />
+              <Button Content="{loc:T conn.revert}" Command="{Binding RevertCommand}" Margin="0,0,8,8" />
+              <Button Content="{loc:T conn.renew}" Command="{Binding RenewLeaseCommand}" Margin="0,0,8,8" />
+              <Button Content="{loc:T conn.flushDns}" Command="{Binding FlushDnsCommand}" Margin="0,0,8,8" />
             </WrapPanel>
             <StackPanel Orientation="Horizontal" Spacing="8">
-              <TextBox Text="{Binding ProfileName}" Width="220" PlaceholderText="Profile name" />
-              <Button Content="★ Save as profile" Command="{Binding SaveProfileCommand}" />
+              <TextBox Text="{Binding ProfileName}" Width="220" PlaceholderText="{loc:T conn.profileName}" />
+              <Button Content="{loc:T conn.saveProfile}" Command="{Binding SaveProfileCommand}" />
             </StackPanel>
             <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
-                       Text="A profile stores these settings plus this adapter's static routes, so you can switch networks (home, office, lab) in one click." />
+                       Text="{loc:T conn.profileHint}" />
           </StackPanel>
         </Border>
       </StackPanel>
     </ScrollViewer>
 
     <TextBlock Grid.Column="2" Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center"
-               IsVisible="{Binding !HasSelection}" Text="No adapter selected" />
+               IsVisible="{Binding !HasSelection}" Text="{loc:T conn.none}" />
   </Grid>
 </UserControl>

@@ -11,6 +11,7 @@ A NetworkManager-style network settings app for Windows 10/11, written in C# / .
 | Routing table: all IPv4 routes, classified Static / Dynamic / System, filter + search | ✅ |
 | Add / delete static routes, optionally persistent (`route -p`) | ✅ |
 | Profiles: save adapter settings + its static routes, re-activate in one click | ✅ |
+| UI in English and Russian (follows the Windows UI language; switch live from the sidebar, saved in `%APPDATA%\NetManager\settings.json`) | ✅ |
 | IPv6, Wi-Fi scan/connect, VPN, proxy, MTU/MAC override, interface metric, DNS search suffixes, bridge/VLAN | ⏳ planned |
 
 ## Layout
@@ -24,6 +25,12 @@ tests/NetManager.Core.Tests
 
 The UI only talks to `INetworkService`. On Windows the app uses `WindowsNetworkService`; on macOS/Linux it falls back to
 `MockNetworkService` (demo data), so the whole UI can be developed and run without a Windows machine.
+
+## Translations
+
+All user-visible text lives in `src/NetManager.Core/Localization/EnglishStrings.cs` and `RussianStrings.cs` (key → text, `{0}` placeholders).
+XAML uses `{loc:T some.key}`, code uses `Loc.T("some.key", args)`. To add a language: add a table, register it in `Loc.cs`, and add it to
+`MainViewModel.Languages`. A unit test fails if a key is missing from a language or its placeholders differ.
 
 ## How it talks to Windows
 

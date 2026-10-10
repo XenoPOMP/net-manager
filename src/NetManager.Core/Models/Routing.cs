@@ -1,3 +1,5 @@
+using NetManager.Core.Localization;
+
 namespace NetManager.Core.Models;
 
 public enum RouteKind
@@ -28,7 +30,10 @@ public sealed record RouteEntry
     public int EffectiveMetric => Metric + InterfaceMetric;
     public string Mask => Ipv4Util.PrefixToMask(PrefixLength);
     public string DestinationCidr => $"{Destination}/{PrefixLength}";
-    public string NextHopDisplay => NextHop ?? "On-link";
+    public string NextHopDisplay => NextHop ?? Loc.T("routes.onlink");
+    /// <summary><see cref="Protocol"/> is a language-neutral name from the backend; this is its translation.</summary>
+    public string ProtocolDisplay => Loc.TryT($"proto.{Protocol}") ?? Protocol;
+    public string KindDisplay => Loc.T($"routes.kind.{Kind}");
     public bool IsDefault => PrefixLength == 0 && Destination == "0.0.0.0";
     /// <summary>System routes and dynamic ones are managed by Windows; only static routes are deleted from the UI.</summary>
     public bool CanDelete => Kind == RouteKind.Static;

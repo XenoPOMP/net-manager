@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using NetManager.Core.Localization;
 using NetManager.Core.Models;
 using NetManager.Core.Services;
 
@@ -15,7 +16,7 @@ public partial class ConnectionsViewModel : ObservableObject
     public ObservableCollection<AdapterInfo> Adapters { get; } = [];
     public ObservableCollection<AddressRow> Addresses { get; } = [];
 
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasSelection), nameof(SelectedIsDisabled), nameof(SelectedIsEnabled))]
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasSelection), nameof(SelectedIsDisabled), nameof(SelectedIsEnabled), nameof(CurrentLeaseText))]
     [NotifyCanExecuteChangedFor(nameof(ApplyCommand), nameof(RevertCommand), nameof(ToggleEnabledCommand), nameof(RenewLeaseCommand), nameof(SaveProfileCommand))]
     private AdapterInfo? _selected;
 
@@ -30,7 +31,8 @@ public partial class ConnectionsViewModel : ObservableObject
     public bool SelectedIsDisabled => Selected?.IsDisabled == true;
     public bool SelectedIsEnabled => Selected is { IsDisabled: false };
     public bool IsAutomatic { get => !IsManual; set => IsManual = !value; }
-    public string ToggleEnabledText => Selected?.IsEnabled == false ? "Enable adapter" : "Disable adapter";
+    public string ToggleEnabledText => Loc.T(Selected?.IsEnabled == false ? "conn.enableAdapter" : "conn.disableAdapter");
+    public string CurrentLeaseText => Loc.T("conn.currentLease", Selected?.PrimaryAddress);
 
     public ConnectionsViewModel(INetworkService network, ProfilesViewModel profiles, AppShell shell)
     {
@@ -83,7 +85,7 @@ public partial class ConnectionsViewModel : ObservableObject
     public async Task RefreshAsync()
     {
         IReadOnlyList<AdapterInfo> list = [];
-        var ok = await _shell.RunAsync("Reading adapters", async () => list = await _network.GetAdaptersAsync(), "Adapters refreshed");
+        var ok = await _shell.RunAsync(Loc.T("conn.reading"), async () => list = await _network.GetAdaptersAsync(), Loc.T("conn.refreshed"));
         if (!ok) return;
 
         string? keep = Selected?.Id;
@@ -108,7 +110,7 @@ public partial class ConnectionsViewModel : ObservableObject
             {
                 if (!Ipv4Util.TryParsePrefixOrMask(row.Mask, out var prefix))
                 {
-                    _shell.Error($"'{row.Mask}' is not a valid subnet mask or prefix length.");
+                    _shell.Error(Loc.T("conn.badMask", row.Mask));
                     return null;
                 }
                 cfg.Addresses.Add(new Ipv4AddressEntry(row.Address.Trim(), prefix));
@@ -125,7 +127,7 @@ public partial class ConnectionsViewModel : ObservableObject
     private async Task ApplyAsync()
     {
         if (Selected is not { } a || BuildConfig() is not { } cfg) return;
-        if (await _shell.RunAsync($"Applying settings to {a.Name}", () => _network.ApplyIpv4Async(a.InterfaceIndex, cfg), $"{a.Name}: settings applied"))
+        if (await _shell.RunAsync(Loc.T("conn.applying", a.Name), () => _network.ApplyIpv4Async(a.InterfaceIndex, cfg), Loc.T("conn.applied", a.Name)))
             await RefreshAsync();
     }
 
@@ -133,7 +135,7 @@ public partial class ConnectionsViewModel : ObservableObject
     private void Revert()
     {
         LoadEditor(Selected);
-        _shell.Info("Changes discarded");
+        _shell.Info(Loc.T("conn.discarded"));
     }
 
     [RelayCommand(CanExecute = nameof(HasAdapter))]
@@ -146,9 +148,9 @@ public partial class ConnectionsViewModel : ObservableObject
     private async Task SetEnabledAsync(AdapterInfo adapter, bool target)
     {
 
-        var ok = await _shell.RunAsync($"{(target ? "Enabling" : "Disabling")} {adapter.Name}",
+        var ok = await _shell.RunAsync(Loc.T(target ? "conn.enabling" : "conn.disabling", adapter.Name),
             () => _network.SetAdapterEnabledAsync(adapter.Id, target),
-            $"{adapter.Name} {(target ? "enabled" : "disabled")}");
+            Loc.T(target ? "conn.enabled" : "conn.disabled", adapter.Name));
         // Windows needs a moment to bring a re-enabled adapter up before it reports addresses.
         if (ok && target) await Task.Delay(2000);
         // Refresh even on failure so a switch that was flipped in the UI snaps back to the real state.
@@ -159,12 +161,12 @@ public partial class ConnectionsViewModel : ObservableObject
     private async Task RenewLeaseAsync()
     {
         if (Selected is not { } a) return;
-        if (await _shell.RunAsync($"Renewing DHCP lease on {a.Name}", () => _network.RenewDhcpLeaseAsync(a.InterfaceIndex)))
+        if (await _shell.RunAsync(Loc.T("conn.renewing", a.Name), () => _network.RenewDhcpLeaseAsync(a.InterfaceIndex)))
             await RefreshAsync();
     }
 
     [RelayCommand]
-    private Task FlushDnsAsync() => _shell.RunAsync("Flushing DNS cache", () => _network.FlushDnsCacheAsync(), "DNS resolver cache flushed");
+    private Task FlushDnsAsync() => _shell.RunAsync(Loc.T("conn.flushing"), () => _network.FlushDnsCacheAsync(), Loc.T("conn.flushed"));
 
     [RelayCommand]
     private void AddAddress() => Addresses.Add(new AddressRow());
@@ -179,7 +181,7 @@ public partial class ConnectionsViewModel : ObservableObject
     private async Task SaveProfileAsync()
     {
         if (Selected is not { } a || BuildConfig() is not { } cfg) return;
-        if (string.IsNullOrWhiteSpace(ProfileName)) { _shell.Error("Give the profile a name."); return; }
+        if (string.IsNullOrWhiteSpace(ProfileName)) { _shell.Error(Loc.T("conn.needName")); return; }
         await _profiles.SaveAsync(ProfileName.Trim(), a, cfg);
     }
 }
