@@ -11,7 +11,7 @@ A NetworkManager-style network settings app for Windows 10/11, written in C# / .
 | Routing table: all IPv4 routes, classified Static / Dynamic / System, filter + search | ✅ |
 | Add / delete static routes, optionally persistent (`route -p`) | ✅ |
 | Profiles: save adapter settings + its static routes, re-activate in one click | ✅ |
-| UI in English and Russian (follows the Windows UI language; switch live from the sidebar, saved in `%APPDATA%\NetManager\settings.json`) | ✅ |
+| UI in English and Russian (follows the Windows UI language) and a light/dark/system theme — both on the Settings page, applied live and saved in `%APPDATA%\NetManager\settings.json` | ✅ |
 | Delete virtual adapters (VirtualBox/VMware host-only) with a confirmation step; hardware, Hyper-V/WSL and system adapters are protected | ✅ |
 | Restore: remembers hardware adapters, warns when one disappears, rescans hardware; recreates removed VirtualBox adapters with their IPv4 settings | ✅ |
 | IPv6, Wi-Fi scan/connect, VPN, proxy, MTU/MAC override, interface metric, DNS search suffixes, bridge/VLAN | ⏳ planned |

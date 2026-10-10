@@ -9,7 +9,6 @@ public static class RussianStrings
         ["nav.connections"] = "Подключения",
         ["nav.routes"] = "Таблица маршрутизации",
         ["nav.profiles"] = "Профили",
-        ["nav.language"] = "Язык",
         ["banner.admin"] = "NetManager запущен не от имени администратора — настройки можно просматривать, но Windows отклонит любые изменения.",
         ["status.ready"] = "Готово",
         ["status.progress"] = "{0}…",
@@ -264,5 +263,14 @@ public static class RussianStrings
         ["err.elevationDeclined"] = "Права администратора не получены. NetManager продолжает работать в режиме просмотра.",
         ["wmi.69"] = "указано больше пяти шлюзов",
         ["wmi.90"] = "параметр вне допустимого диапазона (метрика должна быть от 1 до 9999)",
+        ["nav.settings"] = "Настройки",
+        ["settings.title"] = "Настройки",
+        ["settings.language"] = "Язык",
+        ["settings.language.hint"] = "Язык интерфейса. Меняется сразу.",
+        ["settings.theme"] = "Тема",
+        ["settings.theme.hint"] = "Светлая, тёмная или как в Windows.",
+        ["settings.theme.system"] = "Как в Windows",
+        ["settings.theme.light"] = "Светлая",
+        ["settings.theme.dark"] = "Тёмная",
     };
 }

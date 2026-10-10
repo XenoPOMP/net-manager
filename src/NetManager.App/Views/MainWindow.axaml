@@ -4,6 +4,7 @@
         x:Class="NetManager.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="NetManager" Width="1280" Height="760" MinWidth="900" MinHeight="560"
+        Background="{DynamicResource PageBackground}"
         WindowStartupLocation="CenterScreen">
 
   <Grid RowDefinitions="Auto,Auto,*,Auto">
@@ -27,16 +28,17 @@
     <Grid Grid.Row="2" ColumnDefinitions="232,*">
       <Border Grid.Column="0" Background="{DynamicResource NavBackground}" Padding="8,12">
         <DockPanel>
-          <StackPanel DockPanel.Dock="Bottom" Spacing="4" Margin="2,8,2,0">
-            <TextBlock Classes="muted" FontSize="12" Text="{Binding LanguageLabel}" />
-            <ComboBox HorizontalAlignment="Stretch" x:CompileBindings="False"
-                      ItemsSource="{x:Static vm:MainViewModel.Languages}"
-                      SelectedValueBinding="{Binding Code}" SelectedValue="{Binding SelectedLanguage}">
-              <ComboBox.ItemTemplate>
-                <DataTemplate x:DataType="vm:LanguageOption"><TextBlock Text="{Binding Name}" /></DataTemplate>
-              </ComboBox.ItemTemplate>
-            </ComboBox>
-          </StackPanel>
+          <!-- pinned to the bottom, same look as the main entries -->
+          <ListBox DockPanel.Dock="Bottom" Margin="0,8,0,0" ItemsSource="{Binding FooterPages}" SelectedItem="{Binding SelectedFooter}" Background="Transparent">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:NavItem">
+                <StackPanel Orientation="Horizontal" Spacing="12" Margin="2,6">
+                  <TextBlock Text="{Binding Glyph}" Width="20" TextAlignment="Center" FontSize="16" />
+                  <TextBlock Text="{Binding Title}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="150" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
 
           <StackPanel Spacing="8">
             <TextBlock Classes="h2" Margin="10,2,0,8" Text="NetManager" />

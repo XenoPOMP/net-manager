@@ -10,17 +10,20 @@
     <DataTemplate DataType="vm:RoutesViewModel"><v:RoutesView /></DataTemplate>
     <DataTemplate DataType="vm:ProfilesViewModel"><v:ProfilesView /></DataTemplate>
     <DataTemplate DataType="vm:MaintenanceViewModel"><v:MaintenanceView /></DataTemplate>
+    <DataTemplate DataType="vm:SettingsViewModel"><v:SettingsView /></DataTemplate>
   </Application.DataTemplates>
 
   <Application.Resources>
     <ResourceDictionary>
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="PageBackground" Color="#FFFFFF" />
           <SolidColorBrush x:Key="NavBackground" Color="#F1F1F3" />
           <SolidColorBrush x:Key="CardBackground" Color="#FFFFFF" />
           <SolidColorBrush x:Key="CardBorder" Color="#DDDDE2" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="PageBackground" Color="#18181B" />
           <SolidColorBrush x:Key="NavBackground" Color="#202024" />
           <SolidColorBrush x:Key="CardBackground" Color="#2A2A2F" />
           <SolidColorBrush x:Key="CardBorder" Color="#3A3A41" />

@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NetManager.Core.Localization;
@@ -12,25 +13,21 @@ public sealed record NavItem(string TitleKey, string Glyph, ObservableObject Pag
     public string Title => Loc.T(TitleKey);
 }
 
-/// <summary>Language names are shown in their own language, so they are not part of the translation tables.</summary>
-public sealed record LanguageOption(string Code, string Name);
-
 public partial class MainViewModel : ObservableObject
 {
-    private readonly SettingsStore _settings;
-
     public AppShell Shell { get; } = new();
     public INetworkService Network { get; }
-    public static IReadOnlyList<LanguageOption> Languages { get; } = [new("en", "English"), new("ru", "Русский")];
+    public SettingsViewModel Settings { get; }
 
+    /// <summary>The main pages (top of the sidebar) and the pinned ones (bottom: Settings). Only one of the two lists has a selection.</summary>
     [ObservableProperty] private IReadOnlyList<NavItem> _pages;
+    [ObservableProperty] private IReadOnlyList<NavItem> _footerPages;
     [ObservableProperty] private NavItem? _selectedPage;
+    [ObservableProperty] private NavItem? _selectedFooter;
     /// <summary>What the content area shows. Cleared and set again on a language change to rebuild the view.</summary>
     [ObservableProperty] private ObservableObject? _currentPage;
-    [ObservableProperty] private string _selectedLanguage;
 
     public string Backend => Network.BackendName;
-    public string LanguageLabel => Loc.T("nav.language");
     public string AdminBanner => Loc.T("banner.admin");
     public string AdminButton => Loc.T("banner.restartAdmin");
     public bool ShowAdminWarning => !Network.CanModify;
@@ -42,8 +39,9 @@ public partial class MainViewModel : ObservableObject
     public MainViewModel(INetworkService network, ProfileStore store, SettingsStore settings, RecoveryStore recovery)
     {
         Network = network;
-        _settings = settings;
-        _selectedLanguage = Loc.Language;
+        Settings = new SettingsViewModel(settings);
+        // Posted, not run inline: the language box lives on the page that is about to be rebuilt.
+        Settings.LanguageChanged += () => Dispatcher.UIThread.Post(RebuildForLanguage);
 
         var profiles = new ProfilesViewModel(network, store, Shell);
         var connections = new ConnectionsViewModel(network, profiles, Shell);
@@ -59,6 +57,7 @@ public partial class MainViewModel : ObservableObject
             }
         };
         _pages = BuildPages(connections, routes, profiles, Maintenance);
+        _footerPages = [new("nav.settings", "⚙", Settings)];
         SelectedPage = Pages[0];
 
         _ = connections.RefreshAsync();
@@ -71,30 +70,36 @@ public partial class MainViewModel : ObservableObject
         new("nav.connections", "▣", connections),
         new("nav.routes", "⇄", routes),
         new("nav.profiles", "★", profiles),
-        new("nav.maintenance", "⚙", maintenance),
+        new("nav.maintenance", "⚒", maintenance),
     ];
 
+    // The nav ListBoxes report null while their items are replaced, and selecting in one list clears the other: nulls never change the page.
     partial void OnSelectedPageChanged(NavItem? value)
     {
-        // The nav ListBox reports null while its items are being replaced; keep showing the current page then.
-        if (value is not null) CurrentPage = value.Page;
+        if (value is null) return;
+        CurrentPage = value.Page;
+        SelectedFooter = null;
     }
 
-    partial void OnSelectedLanguageChanged(string value)
+    partial void OnSelectedFooterChanged(NavItem? value)
     {
-        if (value == Loc.Language) return;
-        Loc.SetLanguage(value);
-        try { _settings.Save(new AppSettings { Language = Loc.Language }); } catch (IOException) { /* not critical */ }
+        if (value is null) return;
+        CurrentPage = value.Page;
+        SelectedPage = null;
+    }
 
-        // Rebuild everything that was rendered with the old language.
-        int index = Math.Max(0, Pages.ToList().FindIndex(p => ReferenceEquals(p.Page, CurrentPage)));
+    private void RebuildForLanguage()
+    {
         var page = CurrentPage;
-        Pages = [.. Pages.Select(p => p with { })];   // new NavItem instances → the list re-reads Title
-        SelectedPage = Pages[index];
-        CurrentPage = null;                           // tear the page view down …
-        CurrentPage = page;                           // … and build it again in the new language
+        Pages = [.. Pages.Select(p => p with { })];               // new NavItem instances → the lists re-read Title
+        FooterPages = [.. FooterPages.Select(p => p with { })];
+        var top = Pages.FirstOrDefault(p => ReferenceEquals(p.Page, page));
+        var foot = FooterPages.FirstOrDefault(p => ReferenceEquals(p.Page, page));
+        if (top is not null) SelectedPage = top;
+        else if (foot is not null) SelectedFooter = foot;
+        CurrentPage = null;                                        // tear the page view down …
+        CurrentPage = page;                                        // … and build it again in the new language
         OnPropertyChanged(nameof(Backend));
-        OnPropertyChanged(nameof(LanguageLabel));
         OnPropertyChanged(nameof(AdminBanner));
         OnPropertyChanged(nameof(AdminButton));
         OnPropertyChanged(nameof(MissingBannerText));

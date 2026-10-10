@@ -9,7 +9,6 @@ public static class EnglishStrings
         ["nav.connections"] = "Connections",
         ["nav.routes"] = "Routing table",
         ["nav.profiles"] = "Profiles",
-        ["nav.language"] = "Language",
         ["banner.admin"] = "NetManager is not running as administrator — you can look at the configuration, but changes will be rejected by Windows.",
         ["status.ready"] = "Ready",
         ["status.progress"] = "{0}…",
@@ -264,5 +263,14 @@ public static class EnglishStrings
         ["err.elevationDeclined"] = "Administrator rights were not granted. NetManager keeps running in read-only mode.",
         ["wmi.69"] = "more than five gateways specified",
         ["wmi.90"] = "parameter out of bounds (a metric must be between 1 and 9999)",
+        ["nav.settings"] = "Settings",
+        ["settings.title"] = "Settings",
+        ["settings.language"] = "Language",
+        ["settings.language.hint"] = "Language of the interface. It changes immediately.",
+        ["settings.theme"] = "Theme",
+        ["settings.theme.hint"] = "Light, dark, or the same as Windows.",
+        ["settings.theme.system"] = "Same as Windows",
+        ["settings.theme.light"] = "Light",
+        ["settings.theme.dark"] = "Dark",
     };
 }

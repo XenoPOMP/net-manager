@@ -77,6 +77,10 @@ and pick the backend at runtime: `OperatingSystem.IsWindows() ? WindowsNetworkSe
 - **Restore**: `RecoveryLogic` remembers hardware adapters (matched by PnP id or MAC), `FindMissing` drives the orange banner; "Rescan hardware" =
   `pnputil /scan-devices`; "Recreate" = `VBoxManage hostonlyif create` then re-apply the journalled IPv4 config to the adapter that appeared.
   `ToolRunner` runs tools with an argument list (no shell) and decodes output in the OEM code page (cp866 on Russian Windows).
+- **Settings page** (`SettingsViewModel`, `Views/SettingsView.axaml`, pinned at the bottom of the sidebar as a second nav list `FooterPages`): language and theme
+  (`system`/`light`/`dark`, applied by `ThemeService` via `Application.RequestedThemeVariant`, persisted in `AppSettings.Theme`). New settings go here.
+  Nav selection: two ListBoxes (`SelectedPage`, `SelectedFooter`) — selecting in one clears the other, and a null selection (ListBox rebuilding) is always ignored.
+  Theme-aware colors must come from `App.axaml` theme dictionaries (`PageBackground`, `NavBackground`, `CardBackground`, `CardBorder`), not hard-coded.
 - **Admin rights** (three layers): (1) `app.manifest` requests `requireAdministrator` (verified present in the published exe; UAC prompt on a normal launch);
   (2) `Program.Main` → `Elevation.TryRelaunch` relaunches elevated once via `ShellExecute "runas"` when started un-elevated (`dotnet run`, IDE, non-elevated parent);
   the relaunched copy gets `--elevation-attempted` so a failed elevation can't loop, and `--no-elevate` skips the whole thing for debugging; command line is built with
@@ -89,12 +93,13 @@ and pick the backend at runtime: `OperatingSystem.IsWindows() ? WindowsNetworkSe
 - All user-visible text lives in `Core/Localization/EnglishStrings.cs` and `RussianStrings.cs` (key → text, `{0}` placeholders). `Loc.T(key, args)` in code,
   `{loc:T some.key}` in XAML (`App/Localization/TExtension.cs`, a plain lookup at XAML-load time). Missing RU falls back to EN, then to the key.
 - **Adding a string: add the key to BOTH tables.** `LocalizationTests` fails if keys or `{n}` placeholders differ. Don't hard-code English in models, backends or VMs.
-- Language defaults to the OS UI language (ru → Russian, else English), is switchable live from the sidebar, and persisted in `settings.json`.
-- **How live switching works**: `MainViewModel.OnSelectedLanguageChanged` rebuilds `Pages` (nav titles), then sets `CurrentPage = null` and back to
+- Language defaults to the OS UI language (ru → Russian, else English), is switchable live on the **Settings page**, and persisted in `settings.json`.
+- **How live switching works**: `SettingsViewModel` sets the language and raises `LanguageChanged`; `MainViewModel` handles it **posted to the dispatcher** (the language box
+  sits on the page being rebuilt) in `RebuildForLanguage`: rebuilds `Pages`/`FooterPages` (nav titles), then sets `CurrentPage = null` and back to
   the page so the ContentControl **re-creates the view** and every `{loc:T}` / computed string is re-read. Therefore:
-  - text that stays on screen across a switch (window chrome: language label, banners) must be bound to VM properties and re-notified there;
+  - text that stays on screen across a switch (window chrome: banners, status bar) must be bound to VM properties and re-notified there;
   - computed VM/model strings are fine (re-read when the view is rebuilt);
-  - combo-box items must not rely on instance identity of localized objects — use `SelectedValueBinding` on an enum/code (see route filter, language box).
+  - combo-box items must not rely on instance identity of localized objects — use `SelectedValueBinding` on an enum/code (see route filter, language/theme boxes).
 - Don't use the `Loc` indexer binding (`{Binding [key], Source=…}`) for live text: it did **not** refresh on Avalonia 12. VM property notification works.
 - Russian text is ~30% longer: check layouts (`DataGrid` columns use `Width="Auto"`, nav items wrap).
 
@@ -106,7 +111,7 @@ and pick the backend at runtime: `OperatingSystem.IsWindows() ? WindowsNetworkSe
 - `[RelayCommand]` supports **at most one parameter** (a second one doesn't compile).
 - `[NotifyPropertyChangedFor(...)]` — double-check the attribute actually landed when scripting edits; a silently unapplied replace left IsVisible bindings dead once.
 - Theme brushes: `CardBackgroundFillColorDefaultBrush` etc. don't exist in this Fluent theme → custom brushes `NavBackground/CardBackground/CardBorder` in `App.axaml`.
-- Glyphs: avoid emoji for icons (`🖧` rendered as a box); geometric/symbol characters (`▣ ⇄ ★ ⚙`) work.
+- Glyphs: avoid emoji for icons (`🖧` rendered as a box); geometric/symbol characters (`▣ ⇄ ★ ⚒ ⚙`) work on the Mac renderer — not yet seen on Windows (Segoe UI Symbol should have them).
 - Avalonia has no message box: confirmations are inline panels (see `MaintenanceView`).
 
 ## Rider gotchas (the user builds/runs in Rider)

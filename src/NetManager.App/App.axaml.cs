@@ -20,7 +20,9 @@ public partial class App : Application
             // Real Windows backend on Windows, demo data everywhere else (lets the UI be developed on macOS/Linux).
             INetworkService network = OperatingSystem.IsWindows() ? new WindowsNetworkService() : new MockNetworkService();
             var settings = new SettingsStore();
-            Loc.SetLanguage(settings.Load().Language ?? Loc.DetectSystemLanguage());
+            var saved = settings.Load();
+            Loc.SetLanguage(saved.Language ?? Loc.DetectSystemLanguage());
+            ThemeService.Apply(saved.Theme);
             desktop.MainWindow = new MainWindow { DataContext = new MainViewModel(network, new ProfileStore(), settings, new RecoveryStore()) };
         }
         base.OnFrameworkInitializationCompleted();

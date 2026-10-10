@@ -81,8 +81,10 @@ public class LocalizationTests
         {
             var store = new SettingsStore(path);
             Assert.Null(store.Load().Language);
-            store.Save(new AppSettings { Language = "ru" });
+            Assert.Null(store.Load().Theme);
+            store.Save(new AppSettings { Language = "ru", Theme = "dark" });
             Assert.Equal("ru", store.Load().Language);
+            Assert.Equal("dark", store.Load().Theme);
         }
         finally { File.Delete(path); }
     }

@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:NetManager.App.ViewModels"
+             xmlns:loc="using:NetManager.App.Localization"
+             x:Class="NetManager.App.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+  <ScrollViewer>
+    <StackPanel Spacing="16" MaxWidth="640" HorizontalAlignment="Left" Margin="0,0,12,0">
+      <TextBlock Classes="h1" Text="{loc:T settings.title}" />
+
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="h2" Text="{loc:T settings.language}" />
+          <TextBlock Classes="muted" TextWrapping="Wrap" Text="{loc:T settings.language.hint}" />
+          <ComboBox Width="260" x:CompileBindings="False"
+                    ItemsSource="{x:Static vm:SettingsViewModel.Languages}"
+                    SelectedValueBinding="{Binding Code}" SelectedValue="{Binding SelectedLanguage}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:LanguageOption"><TextBlock Text="{Binding Name}" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="h2" Text="{loc:T settings.theme}" />
+          <TextBlock Classes="muted" TextWrapping="Wrap" Text="{loc:T settings.theme.hint}" />
+          <ComboBox Width="260" x:CompileBindings="False"
+                    ItemsSource="{x:Static vm:SettingsViewModel.Themes}"
+                    SelectedValueBinding="{Binding Code}" SelectedValue="{Binding SelectedTheme}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:ThemeOption"><TextBlock Text="{Binding Label}" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

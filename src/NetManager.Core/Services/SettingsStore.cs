@@ -6,6 +6,8 @@ public sealed class AppSettings
 {
     /// <summary>"en" or "ru"; null = follow the OS language.</summary>
     public string? Language { get; set; }
+    /// <summary>"system", "light" or "dark"; null = follow Windows.</summary>
+    public string? Theme { get; set; }
 }
 
 public sealed class SettingsStore(string? path = null)
